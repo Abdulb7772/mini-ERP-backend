@@ -133,82 +133,121 @@ export const login = async (
 ) => {
   try {
     console.log("\n🔐 ==================== LOGIN ATTEMPT ====================");
+    console.log("⏰ Timestamp:", new Date().toISOString());
     console.log("📧 Email:", req.body.email);
     console.log("🔑 Password provided:", req.body.password ? "Yes" : "No");
     console.log("📝 Request body keys:", Object.keys(req.body));
+    console.log("🌐 Request IP:", req.ip || req.connection.remoteAddress);
+    console.log("📱 User-Agent:", req.get("user-agent")?.substring(0, 100));
     
     const { email, password } = req.body;
 
+    console.log("\n✓ Step 1: Validating input...");
     if (!email || !password) {
-      console.log("❌ Missing email or password");
+      console.log("❌ Validation FAILED: Missing email or password");
+      console.log("   - Email present:", !!email);
+      console.log("   - Password present:", !!password);
+      console.log("==================== END LOGIN ATTEMPT ====================\n");
       throw new AppError("Email and password are required", 400);
     }
+    console.log("✅ Input validation PASSED");
 
-    console.log("\n🔍 Searching for user in database...");
-    console.log("📊 Checking User collection...");
-    // Check both User and Customer tables
+    console.log("\n✓ Step 2: Searching for user in database...");
+    console.log("📊 Querying User collection with email:", email);
+    const startUserQuery = Date.now();
     const user = await User.findOne({ email });
-    console.log("👤 User found:", user ? `Yes (ID: ${user._id})` : "No");
+    const userQueryTime = Date.now() - startUserQuery;
+    console.log("⏱️  User query completed in:", userQueryTime, "ms");
+    console.log("👤 User collection result:", user ? `FOUND (ID: ${user._id}, Name: ${user.name})` : "NOT FOUND");
     
-    console.log("📊 Checking Customer collection...");
+    console.log("\n📊 Querying Customer collection with email:", email);
+    const startCustomerQuery = Date.now();
     const customer = await Customer.findOne({ email });
-    console.log("👥 Customer found:", customer ? `Yes (ID: ${customer._id})` : "No");
+    const customerQueryTime = Date.now() - startCustomerQuery;
+    console.log("⏱️  Customer query completed in:", customerQueryTime, "ms");
+    console.log("👥 Customer collection result:", customer ? `FOUND (ID: ${customer._id}, Name: ${customer.name})` : "NOT FOUND");
+    
+    console.log("\n📝 Database search summary:");
+    console.log("   - User found:", user ? "✅ YES" : "❌ NO");
+    console.log("   - Customer found:", customer ? "✅ YES" : "❌ NO");
     
     const account = user || customer;
     
+    console.log("\n✓ Step 3: Account existence check...");
     if (!account) {
-      console.log("❌ LOGIN FAILED: No account found with this email");
+      console.log("❌ Account check FAILED: No account found with email:", email);
+      console.log("💡 Suggestion: User needs to register first");
       console.log("==================== END LOGIN ATTEMPT ====================\n");
       throw new AppError("Invalid credentials", 401);
     }
+    console.log("✅ Account EXISTS!");
 
-    console.log("\n✅ Account found!");
-    console.log("📋 Account details:");
-    console.log("   - ID:", account._id);
-    console.log("   - Name:", account.name);
-    console.log("   - Email:", account.email);
-    console.log("   - Role:", user ? user.role : "customer");
-    console.log("   - Is Verified:", account.isVerified);
-    console.log("   - Is Active:", account.isActive);
+    console.log("\n✓ Step 4: Checking account details...");
+    console.log("📋 Account Information:");
+    console.log("   ├─ ID:", account._id);
+    console.log("   ├─ Name:", account.name);
+    console.log("   ├─ Email:", account.email);
+    console.log("   ├─ Account Type:", user ? "Staff/Admin User" : "Customer");
+    console.log("   ├─ Role:", user ? user.role : "customer");
+    console.log("   ├─ Is Verified:", account.isVerified ? "✅ YES" : "❌ NO");
+    console.log("   ├─ Is Active:", account.isActive ? "✅ YES" : "❌ NO");
+    console.log("   └─ Created At:", account.createdAt);
 
+    console.log("\n✓ Step 5: Verification status check...");
     if (!account.isVerified) {
-      console.log("❌ LOGIN FAILED: Account not verified");
+      console.log("❌ Verification check FAILED: Account not verified");
+      console.log("📧 User needs to verify email before login");
+      console.log("💡 Suggestion: Check inbox for verification email");
       console.log("==================== END LOGIN ATTEMPT ====================\n");
       throw new AppError("Please verify your email before logging in", 403);
     }
+    console.log("✅ Account is VERIFIED");
 
+    console.log("\n✓ Step 6: Active status check...");
     if (!account.isActive) {
-      console.log("❌ LOGIN FAILED: Account is deactivated");
+      console.log("❌ Active status check FAILED: Account is deactivated");
+      console.log("🚫 Account has been deactivated by administrator");
       console.log("==================== END LOGIN ATTEMPT ====================\n");
       throw new AppError("Account is deactivated", 403);
     }
+    console.log("✅ Account is ACTIVE");
 
-    console.log("\n🔐 Validating password...");
+    console.log("\n✓ Step 7: Password validation...");
+    console.log("🔐 Comparing provided password with stored hash...");
+    const startPasswordCheck = Date.now();
     const isPasswordValid = await comparePassword(password, account.password);
-    console.log("✓ Password validation result:", isPasswordValid ? "Valid ✅" : "Invalid ❌");
+    const passwordCheckTime = Date.now() - startPasswordCheck;
+    console.log("⏱️  Password comparison completed in:", passwordCheckTime, "ms");
+    console.log("🔑 Password validation result:", isPasswordValid ? "✅ VALID" : "❌ INVALID");
     
     if (!isPasswordValid) {
-      console.log("❌ LOGIN FAILED: Invalid password");
+      console.log("❌ Password validation FAILED");
+      console.log("⚠️  Incorrect password provided for email:", email);
       console.log("==================== END LOGIN ATTEMPT ====================\n");
       throw new AppError("Invalid credentials", 401);
     }
+    console.log("✅ Password is CORRECT");
 
     const role = user ? user.role : "customer";
-    console.log("\n🎫 Generating JWT token...");
-    console.log("   - User ID:", account._id.toString());
-    console.log("   - Email:", account.email);
-    console.log("   - Role:", role);
-
+    console.log("\n✓ Step 8: JWT token generation...");
+    console.log("🎫 Token payload:");
+    console.log("   ├─ User ID:", account._id.toString());
+    console.log("   ├─ Email:", account.email);
+    console.log("   └─ Role:", role);
+    
+    const startTokenGen = Date.now();
     const token = generateToken({
       userId: account._id.toString(),
       email: account.email,
       role: role,
     });
+    const tokenGenTime = Date.now() - startTokenGen;
+    console.log("⏱️  Token generation completed in:", tokenGenTime, "ms");
+    console.log("✅ JWT token generated successfully");
+    console.log("🔑 Token length:", token.length, "characters");
 
-    console.log("✅ Token generated successfully");
-    console.log("📤 Sending success response...");
-
-    res.status(200).json({
+    console.log("\n✓ Step 9: Preparing response...");
+    const responseData = {
       status: "success",
       data: {
         token,
@@ -219,15 +258,36 @@ export const login = async (
           role: role,
         },
       },
-    });
+    };
+    console.log("📦 Response data prepared");
+    console.log("📤 Sending success response with status 200...");
+
+    res.status(200).json(responseData);
     
-    console.log("✅ LOGIN SUCCESSFUL for:", email);
+    console.log("\n✅✅✅ LOGIN SUCCESSFUL ✅✅✅");
+    console.log("👤 User:", account.name);
+    console.log("📧 Email:", email);
+    console.log("🎭 Role:", role);
     console.log("==================== END LOGIN ATTEMPT ====================\n");
   } catch (error) {
-    console.log("\n💥 LOGIN ERROR CAUGHT:");
-    console.log("Error type:", error instanceof AppError ? "AppError" : "Unknown Error");
+    console.log("\n💥💥💥 LOGIN ERROR CAUGHT 💥💥💥");
+    console.log("⏰ Error timestamp:", new Date().toISOString());
+    console.log("🔍 Error type:", error instanceof AppError ? "AppError (Expected)" : "Unknown Error (Unexpected)");
     if (error instanceof Error) {
-      console.log("Error message:", error.message);
+      console.log("📛 Error name:", error.name);
+      console.log("💬 Error message:", error.message);
+      if (error instanceof AppError) {
+        console.log("📊 Status code:", (error as any).statusCode);
+      }
+      console.log("\n📚 Stack trace:");
+      console.log(error.stack);
+    } else {
+      console.log("⚠️  Non-Error object thrown:", error);
+    }
+    console.log("==================== END LOGIN ATTEMPT ====================\n");
+    next(error);
+  }
+};
       console.log("Error stack:", error.stack);
     }
     console.log("==================== END LOGIN ATTEMPT ====================\n");
