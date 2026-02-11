@@ -62,4 +62,7 @@ const customerSchema = new Schema<ICustomer>(
   }
 );
 
+// Add index for faster email lookups
+customerSchema.index({ email: 1 });
+
 export default mongoose.model<ICustomer>("Customer", customerSchema);

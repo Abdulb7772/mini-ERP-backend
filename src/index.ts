@@ -23,6 +23,18 @@ import wishlistRoutes from "./routes/wishlistRoutes";
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Set request timeout to 25 seconds (before Render's 30s limit)
+app.use((req, res, next) => {
+  req.setTimeout(25000, () => {
+    console.error(`⏱️ Request timeout: ${req.method} ${req.path}`);
+    res.status(408).json({ 
+      success: false, 
+      message: 'Request timeout' 
+    });
+  });
+  next();
+});
+
 // Middleware
 app.use(cors());
 app.use(express.json({ limit: "50mb" }));
@@ -30,6 +42,11 @@ app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
 // Add request logging middleware (BEFORE routes)
 app.use(requestLogger);
+
+// Health check endpoint (prevents cold starts)
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
 
 // Routes
 app.use("/api/auth", authRoutes);

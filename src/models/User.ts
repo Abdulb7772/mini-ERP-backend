@@ -57,4 +57,7 @@ const userSchema = new Schema<IUser>(
   }
 );
 
+// Add index for faster email lookups
+userSchema.index({ email: 1 });
+
 export default mongoose.model<IUser>("User", userSchema);

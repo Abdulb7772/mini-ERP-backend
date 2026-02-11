@@ -153,18 +153,18 @@ export const login = async (
     console.log("✅ Input validation PASSED");
 
     console.log("\n✓ Step 2: Searching for user in database...");
-    console.log("📊 Querying User collection with email:", email);
-    const startUserQuery = Date.now();
-    const user = await User.findOne({ email });
-    const userQueryTime = Date.now() - startUserQuery;
-    console.log("⏱️  User query completed in:", userQueryTime, "ms");
-    console.log("👤 User collection result:", user ? `FOUND (ID: ${user._id}, Name: ${user.name})` : "NOT FOUND");
+    console.log("📊 Querying User and Customer collections in parallel with email:", email);
+    const startQuery = Date.now();
     
-    console.log("\n📊 Querying Customer collection with email:", email);
-    const startCustomerQuery = Date.now();
-    const customer = await Customer.findOne({ email });
-    const customerQueryTime = Date.now() - startCustomerQuery;
-    console.log("⏱️  Customer query completed in:", customerQueryTime, "ms");
+    // Run both queries in parallel for faster response
+    const [user, customer] = await Promise.all([
+      User.findOne({ email }).lean(),
+      Customer.findOne({ email }).lean()
+    ]);
+    
+    const queryTime = Date.now() - startQuery;
+    console.log("⏱️  Parallel queries completed in:", queryTime, "ms");
+    console.log("👤 User collection result:", user ? `FOUND (ID: ${user._id}, Name: ${user.name})` : "NOT FOUND");
     console.log("👥 Customer collection result:", customer ? `FOUND (ID: ${customer._id}, Name: ${customer.name})` : "NOT FOUND");
     
     console.log("\n📝 Database search summary:");
@@ -288,16 +288,10 @@ export const login = async (
     next(error);
   }
 };
-      console.log("Error stack:", error.stack);
-    }
-    console.log("==================== END LOGIN ATTEMPT ====================\n");
-    next(error);
-  }
-};
 
 export const getMe = async (
   req: AuthRequest,
-  res: Response,
+  res: Response,  
   next: NextFunction
 ) => {
   try {
@@ -319,3 +313,9 @@ export const getMe = async (
     next(error);
   }
 };
+// This function should be removed as NextFunction is already imported from Express
+// The next parameter in each handler already has the correct implementation
+function next(error: any) {
+  throw new Error("Function not implemented.");
+}
+
