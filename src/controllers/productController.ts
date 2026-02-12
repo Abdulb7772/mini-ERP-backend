@@ -102,6 +102,9 @@ export const createProduct = async (
   next: NextFunction
 ) => {
   try {
+    console.log('=== CREATE PRODUCT REQUEST ===');
+    console.log('Request body:', JSON.stringify(req.body, null, 2));
+    
     const {
       name,
       sku,
@@ -114,6 +117,9 @@ export const createProduct = async (
       imageUrl,
       images,
     } = req.body;
+    
+    console.log('Images received:', images);
+    console.log('ImageUrl received:', imageUrl);
 
     const existingProduct = await Product.findOne({ sku });
     if (existingProduct) {
@@ -131,6 +137,8 @@ export const createProduct = async (
       imageUrl,
       images,
     });
+    
+    console.log('Product created:', product);
 
     let createdVariations: any[] = [];
     if (hasVariations && variations && variations.length > 0) {
