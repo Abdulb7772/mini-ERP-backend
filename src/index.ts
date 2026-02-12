@@ -19,6 +19,7 @@ import dashboardRoutes from "./routes/dashboardRoutes";
 import attendanceRoutes from "./routes/attendanceRoutes";
 import cartRoutes from "./routes/cartRoutes";
 import wishlistRoutes from "./routes/wishlistRoutes";
+import aboutUsRoutes from "./routes/aboutUsRoutes";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -74,6 +75,7 @@ app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api/wishlist", wishlistRoutes);
+app.use("/api/about-us", aboutUsRoutes);
 
 // Add error logging middleware (BEFORE error handler)
 app.use(errorLogger);
