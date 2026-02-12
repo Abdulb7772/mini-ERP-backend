@@ -90,13 +90,17 @@ export const register = async (
 
     // Send verification email
     console.log("\n📧 Sending verification email...");
+    let emailSent = false;
     try {
       await sendVerificationEmail(email, name, verificationToken);
       console.log("✅ Verification email sent successfully");
-    } catch (emailError) {
-      console.error("⚠️ Error sending verification email:", emailError);
+      emailSent = true;
+    } catch (emailError: any) {
+      console.error("⚠️ Error sending verification email:");
+      console.error("   Error message:", emailError?.message);
+      console.error("   Error details:", emailError);
       console.log("⚠️ Registration will continue despite email error");
-      // Don't fail registration if email fails
+      // Don't fail registration if email fails - user can request resend later
     }
 
     console.log("\n✅ REGISTRATION SUCCESSFUL for:", email);
@@ -104,7 +108,9 @@ export const register = async (
 
     res.status(201).json({
       status: "success",
-      message: "Registration successful. Please check your email to verify your account.",
+      message: emailSent 
+        ? "Registration successful. Please check your email to verify your account."
+        : "Registration successful. Verification email could not be sent. Please contact support or try resending verification email.",
       data: {
         user: {
           id: createdUser._id,
@@ -113,6 +119,7 @@ export const register = async (
           role: isCustomer ? "customer" : (createdUser as any).role,
           isVerified: createdUser.isVerified,
         },
+        emailSent,
       },
     });
   } catch (error) {

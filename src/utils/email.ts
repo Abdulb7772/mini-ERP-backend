@@ -99,11 +99,18 @@ export const sendVerificationEmail = async (
   };
 
   try {
-    await transporter.sendMail(mailOptions);
-    console.log(`Verification email sent to ${email}`);
-  } catch (error) {
-    console.error("Error sending email:", error);
-    throw new Error("Failed to send verification email");
+    const info = await transporter.sendMail(mailOptions);
+    console.log(`✅ Verification email sent successfully to ${email}`);
+    console.log(`   Message ID: ${info.messageId}`);
+    return true;
+  } catch (error: any) {
+    console.error("❌ Error sending verification email:");
+    console.error("   Recipient:", email);
+    console.error("   Error message:", error?.message);
+    console.error("   Error code:", error?.code);
+    console.error("   Full error:", error);
+    // Re-throw the error so it can be caught and handled by the caller
+    throw error;
   }
 };
 
