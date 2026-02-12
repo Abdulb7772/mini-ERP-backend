@@ -40,6 +40,7 @@ const corsOptions = {
   origin: [
     'https://mini-erp-frontend-uzn9.vercel.app',
     'https://mini-erp-client-side-lv6t.vercel.app',
+    'https://mini-erp-client-side-r4z1.vercel.app', // Added new Vercel deployment
     'http://localhost:3000',
     'http://localhost:3001'
   ],
