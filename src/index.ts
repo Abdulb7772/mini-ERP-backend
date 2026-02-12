@@ -20,6 +20,7 @@ import attendanceRoutes from "./routes/attendanceRoutes";
 import cartRoutes from "./routes/cartRoutes";
 import wishlistRoutes from "./routes/wishlistRoutes";
 import aboutUsRoutes from "./routes/aboutUsRoutes";
+import blogRoutes from "./routes/blogRoutes";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -76,6 +77,7 @@ app.use("/api/attendance", attendanceRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api/wishlist", wishlistRoutes);
 app.use("/api/about-us", aboutUsRoutes);
+app.use("/api/blogs", blogRoutes);
 
 // Add error logging middleware (BEFORE error handler)
 app.use(errorLogger);
