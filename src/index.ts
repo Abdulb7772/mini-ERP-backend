@@ -39,8 +39,9 @@ app.use((req, res, next) => {
 const corsOptions = {
   origin: [
     'https://mini-erp-frontend-uzn9.vercel.app',
+    'https://mini-erp-admin-side.vercel.app', // Admin client deployment
     'https://mini-erp-client-side-lv6t.vercel.app',
-    'https://mini-erp-client-side-r4z1.vercel.app', // Added new Vercel deployment
+    'https://mini-erp-client-side-r4z1.vercel.app', // Customer client deployment
     'http://localhost:3000',
     'http://localhost:3001'
   ],
