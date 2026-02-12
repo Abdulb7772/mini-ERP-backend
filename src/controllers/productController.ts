@@ -10,6 +10,9 @@ export const getProducts = async (
   next: NextFunction
 ) => {
   try {
+    console.log("📦 [Products] Getting products - User:", req.user?.email);
+    console.log("📦 [Products] Query params:", req.query);
+    
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
     const search = req.query.search as string;
@@ -26,11 +29,17 @@ export const getProducts = async (
       query.category = category;
     }
 
+    console.log("📦 [Products] Query filter:", JSON.stringify(query));
+    
     const total = await Product.countDocuments(query);
+    console.log("📦 [Products] Total matching products:", total);
+    
     const products = await Product.find(query)
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit);
+      
+    console.log("📦 [Products] Products fetched:", products.length);
 
     // Calculate stock from variations for products that have variations
     const productsWithStock = await Promise.all(
@@ -46,6 +55,8 @@ export const getProducts = async (
         return product;
       })
     );
+    
+    console.log("✅ [Products] Sending response with", productsWithStock.length, "products");
 
     res.status(200).json({
       status: "success",
@@ -57,6 +68,7 @@ export const getProducts = async (
       },
     });
   } catch (error) {
+    console.error("❌ [Products] Error:", error);
     next(error);
   }
 };
