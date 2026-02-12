@@ -189,7 +189,8 @@ export const verifyEmail = async (
   next: NextFunction
 ) => {
   try {
-    const { token } = req.body;
+    // Accept token from query params or body
+    const token = req.query.token as string || req.body.token;
 
     if (!token) {
       throw new AppError("Verification token is required", 400);
@@ -254,28 +255,38 @@ export const resendVerificationEmail = async (
   next: NextFunction
 ) => {
   try {
-    const { id } = req.params;
+    // Accept email from body (public route)
+    const { email } = req.body;
 
-    const user = await User.findById(id);
-    if (!user) {
-      throw new AppError("User not found", 404);
+    if (!email) {
+      throw new AppError("Email is required", 400);
     }
 
-    if (user.isVerified) {
-      throw new AppError("User is already verified", 400);
+    // Check both User and Customer tables
+    const user = await User.findOne({ email });
+    const customer = await Customer.findOne({ email });
+    
+    const account = user || customer;
+
+    if (!account) {
+      throw new AppError("Account not found", 404);
+    }
+
+    if (account.isVerified) {
+      throw new AppError("Account is already verified", 400);
     }
 
     // Generate new verification token
     const verificationToken = generateVerificationToken();
     const verificationTokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
-    user.verificationToken = verificationToken;
-    user.verificationTokenExpires = verificationTokenExpires;
-    await user.save();
+    account.verificationToken = verificationToken;
+    account.verificationTokenExpires = verificationTokenExpires;
+    await account.save();
 
     // Send verification email (without password since user already has credentials)
     try {
-      await sendVerificationEmail(user.email, user.name, verificationToken);
+      await sendVerificationEmail(account.email, account.name, verificationToken);
     } catch (emailError) {
       console.error("Failed to send email:", emailError);
       throw new AppError("Failed to send verification email", 500);
