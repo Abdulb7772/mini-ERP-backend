@@ -43,6 +43,7 @@ const corsOptions = {
     const allowedOrigins = [
       'https://mini-erp-frontend-uzn9.vercel.app',
       'https://mini-erp-admin-side.vercel.app',
+      'https://mini-erp-admin-side-mimy.vercel.app',
       'https://mini-erp-client-side-lv6t.vercel.app',
       'https://mini-erp-client-side-r4z1.vercel.app',
       'http://localhost:3000',
@@ -62,7 +63,7 @@ const corsOptions = {
     }
     
     console.log('⚠️ CORS blocked origin:', origin);
-    callback(null, false);
+    callback(null, true); // Allow all origins for now to debug
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
