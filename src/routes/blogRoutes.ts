@@ -8,7 +8,7 @@ import {
   toggleBlogStatus,
   deleteBlog,
 } from "../controllers/blogController";
-import { authenticateToken, authorizeRole } from "../middlewares/auth";
+import { authenticate, authorize } from "../middlewares/auth";
 
 const router = express.Router();
 
@@ -17,10 +17,10 @@ router.get("/published", getPublishedBlogs);
 router.get("/:id", getBlogById);
 
 // Admin routes
-router.get("/", authenticateToken, authorizeRole(["admin"]), getAllBlogs);
-router.post("/", authenticateToken, authorizeRole(["admin"]), createBlog);
-router.put("/:id", authenticateToken, authorizeRole(["admin"]), updateBlog);
-router.patch("/:id/toggle-status", authenticateToken, authorizeRole(["admin"]), toggleBlogStatus);
-router.delete("/:id", authenticateToken, authorizeRole(["admin"]), deleteBlog);
+router.get("/", authenticate, authorize("admin"), getAllBlogs);
+router.post("/", authenticate, authorize("admin"), createBlog);
+router.put("/:id", authenticate, authorize("admin"), updateBlog);
+router.patch("/:id/toggle-status", authenticate, authorize("admin"), toggleBlogStatus);
+router.delete("/:id", authenticate, authorize("admin"), deleteBlog);
 
 export default router;
