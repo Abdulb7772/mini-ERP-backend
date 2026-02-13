@@ -39,14 +39,31 @@ app.use((req, res, next) => {
 
 // CORS Configuration
 const corsOptions = {
-  origin: [
-    'https://mini-erp-frontend-uzn9.vercel.app',
-    'https://mini-erp-admin-side.vercel.app', // Admin client deployment
-    'https://mini-erp-client-side-lv6t.vercel.app',
-    'https://mini-erp-client-side-r4z1.vercel.app', // Customer client deployment
-    'http://localhost:3000',
-    'http://localhost:3001'
-  ],
+  origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
+    const allowedOrigins = [
+      'https://mini-erp-frontend-uzn9.vercel.app',
+      'https://mini-erp-admin-side.vercel.app',
+      'https://mini-erp-client-side-lv6t.vercel.app',
+      'https://mini-erp-client-side-r4z1.vercel.app',
+      'http://localhost:3000',
+      'http://localhost:3001'
+    ];
+    
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    // Allow any vercel.app subdomain for mini-erp
+    if (origin.includes('vercel.app') && origin.includes('mini-erp')) {
+      return callback(null, true);
+    }
+    
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    
+    console.log('⚠️ CORS blocked origin:', origin);
+    callback(null, false);
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
