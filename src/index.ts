@@ -46,6 +46,7 @@ const corsOptions = {
       'https://mini-erp-admin-side-mimy.vercel.app',
       'https://mini-erp-client-side-lv6t.vercel.app',
       'https://mini-erp-client-side-r4z1.vercel.app',
+      'https://mini-erp-client-side-ej38.vercel.app',
       'http://localhost:3000',
       'http://localhost:3001'
     ];
