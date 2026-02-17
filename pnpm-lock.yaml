@@ -35,6 +35,9 @@ importers:
       stripe:
         specifier: ^20.3.1
         version: 20.3.1(@types/node@25.0.10)
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
     devDependencies:
       '@types/bcryptjs':
         specifier: ^3.0.0
@@ -60,9 +63,6 @@ importers:
       ts-node:
         specifier: ^10.9.2
         version: 10.9.2(@types/node@25.0.10)(typescript@5.9.3)
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
 
 packages:
 
