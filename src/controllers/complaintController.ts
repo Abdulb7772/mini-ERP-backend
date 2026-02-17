@@ -363,15 +363,6 @@ export const canFileComplaint = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    // Check if order is delivered
-    if (order.status === "delivered") {
-      return res.status(200).json({
-        success: true,
-        canFile: false,
-        message: "Cannot file a complaint for delivered orders",
-      });
-    }
-
     // Check if order is at least 48 hours old
     const orderCreatedAt = new Date(order.createdAt);
     const currentTime = new Date();

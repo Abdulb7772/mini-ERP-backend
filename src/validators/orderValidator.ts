@@ -21,6 +21,6 @@ export const createOrderValidator = [
 export const updateOrderStatusValidator = [
   param("id").isMongoId().withMessage("Invalid order ID"),
   body("status")
-    .isIn(["pending", "processing", "completed", "cancelled"])
+    .isIn(["pending", "processing", "shipped", "delivered", "completed", "cancelled"])
     .withMessage("Invalid status"),
 ];
