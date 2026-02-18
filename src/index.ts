@@ -25,6 +25,8 @@ import employeeRoutes from "./routes/employeeRoutes";
 import complaintRoutes from "./routes/complaintRoutes";
 import notificationRoutes from "./routes/notificationRoutes";
 import reviewRoutes from "./routes/reviewRoutes";
+import uploadRoutes from "./routes/uploadRoutes";
+import fileProxyRoutes from "./routes/fileProxyRoutes";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -105,6 +107,8 @@ app.use("/api/employees", employeeRoutes);
 app.use("/api/complaints", complaintRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/reviews", reviewRoutes);
+app.use("/api/upload", uploadRoutes);
+app.use("/api/file-proxy", fileProxyRoutes);
 
 // Add error logging middleware (BEFORE error handler)
 app.use(errorLogger);
@@ -121,6 +125,9 @@ console.log(`PORT: ${PORT}`);
 console.log(`MONGO_URI: ${process.env.MONGO_URI ? "✅ Set" : "❌ Missing"}`);
 console.log(`JWT_SECRET: ${process.env.JWT_SECRET ? "✅ Set" : "❌ Missing"}`);
 console.log(`STRIPE_SECRET_KEY: ${process.env.STRIPE_SECRET_KEY ? "✅ Set" : "❌ Missing"}`);
+console.log(`CLOUDINARY_CLOUD_NAME: ${process.env.CLOUDINARY_CLOUD_NAME ? "✅ Set" : "❌ Missing"}`);
+console.log(`CLOUDINARY_API_KEY: ${process.env.CLOUDINARY_API_KEY ? "✅ Set" : "❌ Missing"}`);
+console.log(`CLOUDINARY_API_SECRET: ${process.env.CLOUDINARY_API_SECRET ? "✅ Set" : "❌ Missing"}`);
 console.log(`EMAIL_USER: ${process.env.EMAIL_USER ? "✅ Set" : "❌ Missing"}`);
 console.log(`EMAIL_PASSWORD: ${process.env.EMAIL_PASSWORD ? "✅ Set" : "❌ Missing"}`);
 console.log(`FRONTEND_URL: ${process.env.FRONTEND_URL || "Not set (using default)"}`);
