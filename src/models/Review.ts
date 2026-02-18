@@ -11,6 +11,7 @@ export interface IReview extends Document {
   status: "pending" | "approved" | "rejected";
   isVerified: boolean; // Verified purchase
   helpful: number; // Helpful count
+  helpfulBy: mongoose.Types.ObjectId[]; // Users who marked as helpful
   adminReply?: string; // Admin/Staff reply to review
   repliedBy?: mongoose.Types.ObjectId; // User who replied
   repliedAt?: Date; // When reply was added
@@ -66,6 +67,11 @@ const reviewSchema = new Schema<IReview>(
     helpful: {
       type: Number,
       default: 0,
+    },
+    helpfulBy: {
+      type: [Schema.Types.ObjectId],
+      ref: "Customer",
+      default: [],
     },
     adminReply: {
       type: String,

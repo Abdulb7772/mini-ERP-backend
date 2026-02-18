@@ -318,6 +318,12 @@ export const getComplaintStats = async (req: AuthRequest, res: Response) => {
     const highPriorityComplaints = await Complaint.countDocuments({
       priority: "high",
     });
+    const mediumPriorityComplaints = await Complaint.countDocuments({
+      priority: "medium",
+    });
+    const lowPriorityComplaints = await Complaint.countDocuments({
+      priority: "low",
+    });
 
     res.status(200).json({
       success: true,
@@ -328,6 +334,8 @@ export const getComplaintStats = async (req: AuthRequest, res: Response) => {
         resolved: resolvedComplaints,
         rejected: rejectedComplaints,
         highPriority: highPriorityComplaints,
+        mediumPriority: mediumPriorityComplaints,
+        lowPriority: lowPriorityComplaints,
       },
     });
   } catch (error: any) {

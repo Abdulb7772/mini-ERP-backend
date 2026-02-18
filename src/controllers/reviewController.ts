@@ -56,6 +56,7 @@ export const getProductReviews = async (
     const { productId } = req.params;
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
+    const userId = req.user?.userId; // May be undefined if not authenticated
 
     const query: any = { 
       productId
@@ -68,6 +69,19 @@ export const getProductReviews = async (
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit);
+
+    // Add hasMarkedHelpful flag for each review if user is authenticated
+    const reviewsWithHelpfulStatus = reviews.map((review) => {
+      const reviewObj = review.toObject() as any;
+      if (userId) {
+        reviewObj.hasMarkedHelpful = review.helpfulBy.some(
+          (id) => id.toString() === userId
+        );
+      } else {
+        reviewObj.hasMarkedHelpful = false;
+      }
+      return reviewObj;
+    });
 
     // Calculate average rating
     const ratingStats = await Review.aggregate([
@@ -108,7 +122,7 @@ export const getProductReviews = async (
 
     res.status(200).json({
       status: "success",
-      data: reviews,
+      data: reviewsWithHelpfulStatus,
       stats,
       pagination: {
         total,
@@ -439,12 +453,24 @@ export const markReviewHelpful = async (
 ) => {
   try {
     const { id } = req.params;
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      throw new AppError("Authentication required", 401);
+    }
 
     const review = await Review.findById(id);
     if (!review) {
       throw new AppError("Review not found", 404);
     }
 
+    // Check if user has already marked this review as helpful
+    if (review.helpfulBy.some((id) => id.toString() === userId)) {
+      throw new AppError("You have already marked this review as helpful", 400);
+    }
+
+    // Add user to helpfulBy array and increment helpful count
+    review.helpfulBy.push(userId as any);
     review.helpful += 1;
     await review.save();
 
