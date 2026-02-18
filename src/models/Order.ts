@@ -16,8 +16,13 @@ export interface IOrder extends Document {
   status: "pending" | "processing" | "shipped" | "delivered" | "completed" | "cancelled";
   paymentStatus: "unpaid" | "partial" | "paid";
   paidAmount: number;
+  walletPointsUsed?: number;
   notes?: string;
   createdBy: mongoose.Types.ObjectId;
+  userId?: mongoose.Types.ObjectId;
+  refundDeclined?: boolean;
+  refundDeclinedReason?: string;
+  refundDeclinedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -82,12 +87,31 @@ const orderSchema = new Schema<IOrder>(
       default: 0,
       min: 0,
     },
+    walletPointsUsed: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    userId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+    },
     notes: {
       type: String,
     },
     createdBy: {
       type: Schema.Types.ObjectId,
       ref: "User",
+    },
+    refundDeclined: {
+      type: Boolean,
+      default: false,
+    },
+    refundDeclinedReason: {
+      type: String,
+    },
+    refundDeclinedAt: {
+      type: Date,
     },
   },
   {

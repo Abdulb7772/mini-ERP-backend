@@ -3,10 +3,14 @@ import Order from "../models/Order";
 import Product from "../models/Product";
 import Variation from "../models/Variation";
 import Customer from "../models/Customer";
+import User from "../models/User";
+import Notification from "../models/Notification";
+import mongoose from "mongoose";
 import { AppError } from "../middlewares/errorHandler";
 import { AuthRequest } from "../middlewares/auth";
 import { sendOrderConfirmationEmail } from "../utils/email";
 import { createNotification } from "../controllers/notificationController";
+import { addPoints, deductPoints } from "./walletController";
 
 // Import Stripe with proper error handling
 if (!process.env.STRIPE_SECRET_KEY) {
@@ -69,7 +73,7 @@ export const createOrder = async (
   next: NextFunction
 ) => {
   try {
-    const { customerId, items, notes, phone, shippingAddress, paymentMethod, paymentStatus, transactionId, totalAmount: requestTotalAmount } = req.body;
+    const { customerId, items, notes, phone, shippingAddress, paymentMethod, paymentStatus, transactionId, totalAmount: requestTotalAmount, walletPointsUsed } = req.body;
 
     let finalCustomerId = customerId;
 
@@ -151,6 +155,7 @@ export const createOrder = async (
       console.log('=== Order Item Debug ===');
       console.log('Full item:', JSON.stringify(item, null, 2));
       console.log('productId:', productId);
+      console.log('productId type:', typeof productId);
       console.log('variationId:', item.variationId);
       console.log('=======================');
       
@@ -158,9 +163,29 @@ export const createOrder = async (
         throw new AppError("Product ID is required for each item", 400);
       }
 
-      const product = await Product.findById(productId);
+      // Validate ObjectId format
+      if (!mongoose.Types.ObjectId.isValid(productId)) {
+        throw new AppError(`Invalid product ID format: ${productId}`, 400);
+      }
+
+      // Convert to ObjectId if it's a string
+      const productObjectId = typeof productId === 'string' 
+        ? new mongoose.Types.ObjectId(productId) 
+        : productId;
+
+      console.log('Looking up product with ObjectId:', productObjectId);
+      const product = await Product.findById(productObjectId);
+      console.log('Product found:', product ? `Yes - ${product.name}` : 'No');
+      
       if (!product) {
-        throw new AppError(`Product not found: ${productId}`, 404);
+        // Additional debug: Check if any products exist
+        const totalProducts = await Product.countDocuments();
+        console.log('Total products in database:', totalProducts);
+        
+        throw new AppError(
+          `Product not found with ID: ${productId}. This product may have been deleted or the ID is incorrect. Please refresh your cart and try again.`,
+          404
+        );
       }
 
       let price = item.price || product.price;
@@ -186,7 +211,7 @@ export const createOrder = async (
       totalAmount += subtotal;
 
       orderItems.push({
-        productId: productId,
+        productId: productObjectId,
         variationId: item.variationId,
         quantity: item.quantity,
         price,
@@ -198,7 +223,7 @@ export const createOrder = async (
           $inc: { stock: -item.quantity },
         });
       } else {
-        await Product.findByIdAndUpdate(productId, {
+        await Product.findByIdAndUpdate(productObjectId, {
           $inc: { stock: -item.quantity },
         });
       }
@@ -219,10 +244,12 @@ export const createOrder = async (
     const order = await Order.create({
       orderNumber,
       customerId: finalCustomerId,
+      userId: req.user?.userId,
       items: orderItems,
       totalAmount: finalTotalAmount,
       paymentStatus: paymentStatus || "unpaid",
       paidAmount: paymentStatus === "paid" ? finalTotalAmount : 0,
+      walletPointsUsed: walletPointsUsed || 0,
       notes: notes || `Payment Method: ${paymentMethod || "N/A"}${transactionId ? `, Transaction ID: ${transactionId}` : ""}`,
       createdBy: req.user?.userId,
     });
@@ -284,9 +311,33 @@ export const createOrder = async (
       // Don't fail order creation if email fails
     }
 
+    // Deduct wallet points if used
+    let walletMessage = '';
+    if (walletPointsUsed && walletPointsUsed > 0 && req.user?.userId) {
+      try {
+        const result = await deductPoints(
+          new mongoose.Types.ObjectId(req.user.userId),
+          walletPointsUsed,
+          'purchase',
+          `Used wallet points for order ${order.orderNumber}`,
+          order._id as mongoose.Types.ObjectId
+        );
+
+        if (result.success) {
+          walletMessage = ` (${walletPointsUsed} wallet points used)`;
+        } else {
+          console.error('Failed to deduct wallet points:', result.message);
+          // Don't fail the order if wallet deduction fails
+        }
+      } catch (walletError) {
+        console.error('Error deducting wallet points:', walletError);
+        // Don't fail the order if wallet deduction fails
+      }
+    }
+
     res.status(201).json({
       status: "success",
-      message: "Order placed successfully! Confirmation email sent.",
+      message: "Order placed successfully! Confirmation email sent." + walletMessage,
       data: populatedOrder,
     });
   } catch (error) {
@@ -390,6 +441,7 @@ export const cancelOrder = async (
       throw new AppError("Order is already cancelled", 400);
     }
 
+    // Restore stock for cancelled items
     for (const item of order.items) {
       if (item.variationId) {
         await Variation.findByIdAndUpdate(item.variationId, {
@@ -405,9 +457,30 @@ export const cancelOrder = async (
     order.status = "cancelled";
     await order.save();
 
+    // Note: Wallet refunds are processed manually by admin through the refund management system
+    // Automatic refunds have been disabled to allow admin review before crediting wallet points
+
+    // Create notification for all admins if order was paid (refund request)
+    if (order.paymentStatus === 'paid') {
+      const admins = await User.find({ role: { $in: ['admin', 'superadmin'] } });
+      
+      const notifications = admins.map(admin => ({
+        userId: admin._id,
+        userModel: 'User' as const,
+        type: 'refund_request' as const,
+        title: 'New Refund Request',
+        message: `Order ${order.orderNumber} has been cancelled and requires refund approval. Amount: $${order.totalAmount}`,
+        relatedId: order._id,
+        relatedModel: 'Order',
+        isRead: false,
+      }));
+
+      await Notification.insertMany(notifications);
+    }
+
     res.status(200).json({
       status: "success",
-      message: "Order cancelled successfully",
+      message: "Order cancelled successfully. Refund pending admin approval.",
       data: order,
     });
   } catch (error) {

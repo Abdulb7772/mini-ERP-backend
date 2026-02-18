@@ -27,6 +27,8 @@ import notificationRoutes from "./routes/notificationRoutes";
 import reviewRoutes from "./routes/reviewRoutes";
 import uploadRoutes from "./routes/uploadRoutes";
 import fileProxyRoutes from "./routes/fileProxyRoutes";
+import walletRoutes from "./routes/walletRoutes";
+import refundRoutes from "./routes/refundRoutes";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -109,6 +111,8 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/upload", uploadRoutes);
 app.use("/api/file-proxy", fileProxyRoutes);
+app.use("/api/wallet", walletRoutes);
+app.use("/api/refund", refundRoutes);
 
 // Add error logging middleware (BEFORE error handler)
 app.use(errorLogger);

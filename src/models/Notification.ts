@@ -3,7 +3,7 @@ import mongoose, { Schema, Document } from "mongoose";
 export interface INotification extends Document {
   userId: mongoose.Types.ObjectId;
   userModel: "User" | "Customer";
-  type: "complaint_filed" | "complaint_replied" | "order_status" | "general";
+  type: "complaint_filed" | "complaint_replied" | "order_status" | "refund_request" | "refund_response" | "general";
   title: string;
   message: string;
   relatedId?: mongoose.Types.ObjectId; // complaint ID, order ID, etc.
@@ -27,7 +27,7 @@ const NotificationSchema = new Schema<INotification>(
     },
     type: {
       type: String,
-      enum: ["complaint_filed", "complaint_replied", "order_status", "general"],
+      enum: ["complaint_filed", "complaint_replied", "order_status", "refund_request", "refund_response", "general"],
       required: true,
     },
     title: {

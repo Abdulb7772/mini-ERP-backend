@@ -38,6 +38,6 @@ const upload = multer({
 // @route   POST /api/upload
 // @desc    Upload files to Cloudinary
 // @access  Private
-router.post('/', authenticate, upload.array('files', 10), uploadFiles);
+router.post('/', authenticate, upload.array('files', 10), uploadFiles as any);
 
 export default router;
