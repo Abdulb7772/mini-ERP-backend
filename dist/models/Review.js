@@ -82,6 +82,11 @@ const reviewSchema = new mongoose_1.Schema({
         type: Number,
         default: 0,
     },
+    helpfulBy: {
+        type: [mongoose_1.Schema.Types.ObjectId],
+        ref: "Customer",
+        default: [],
+    },
     adminReply: {
         type: String,
         trim: true,

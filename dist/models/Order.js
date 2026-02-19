@@ -92,12 +92,31 @@ const orderSchema = new mongoose_1.Schema({
         default: 0,
         min: 0,
     },
+    walletPointsUsed: {
+        type: Number,
+        default: 0,
+        min: 0,
+    },
+    userId: {
+        type: mongoose_1.Schema.Types.ObjectId,
+        ref: "User",
+    },
     notes: {
         type: String,
     },
     createdBy: {
         type: mongoose_1.Schema.Types.ObjectId,
         ref: "User",
+    },
+    refundDeclined: {
+        type: Boolean,
+        default: false,
+    },
+    refundDeclinedReason: {
+        type: String,
+    },
+    refundDeclinedAt: {
+        type: Date,
     },
 }, {
     timestamps: true,

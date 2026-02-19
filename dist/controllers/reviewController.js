@@ -51,6 +51,7 @@ const getProductReviews = async (req, res, next) => {
         const { productId } = req.params;
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
+        const userId = req.user?.userId; // May be undefined if not authenticated
         const query = {
             productId
         };
@@ -61,6 +62,17 @@ const getProductReviews = async (req, res, next) => {
             .sort({ createdAt: -1 })
             .skip((page - 1) * limit)
             .limit(limit);
+        // Add hasMarkedHelpful flag for each review if user is authenticated
+        const reviewsWithHelpfulStatus = reviews.map((review) => {
+            const reviewObj = review.toObject();
+            if (userId) {
+                reviewObj.hasMarkedHelpful = review.helpfulBy.some((id) => id.toString() === userId);
+            }
+            else {
+                reviewObj.hasMarkedHelpful = false;
+            }
+            return reviewObj;
+        });
         // Calculate average rating
         const ratingStats = await Review_1.default.aggregate([
             { $match: { productId: productId, status: "approved" } },
@@ -98,7 +110,7 @@ const getProductReviews = async (req, res, next) => {
         };
         res.status(200).json({
             status: "success",
-            data: reviews,
+            data: reviewsWithHelpfulStatus,
             stats,
             pagination: {
                 total,
@@ -366,10 +378,20 @@ exports.checkReviewEligibility = checkReviewEligibility;
 const markReviewHelpful = async (req, res, next) => {
     try {
         const { id } = req.params;
+        const userId = req.user?.userId;
+        if (!userId) {
+            throw new errorHandler_1.AppError("Authentication required", 401);
+        }
         const review = await Review_1.default.findById(id);
         if (!review) {
             throw new errorHandler_1.AppError("Review not found", 404);
         }
+        // Check if user has already marked this review as helpful
+        if (review.helpfulBy.some((id) => id.toString() === userId)) {
+            throw new errorHandler_1.AppError("You have already marked this review as helpful", 400);
+        }
+        // Add user to helpfulBy array and increment helpful count
+        review.helpfulBy.push(userId);
         review.helpful += 1;
         await review.save();
         res.status(200).json({

@@ -285,6 +285,12 @@ const getComplaintStats = async (req, res) => {
         const highPriorityComplaints = await Complaint_1.default.countDocuments({
             priority: "high",
         });
+        const mediumPriorityComplaints = await Complaint_1.default.countDocuments({
+            priority: "medium",
+        });
+        const lowPriorityComplaints = await Complaint_1.default.countDocuments({
+            priority: "low",
+        });
         res.status(200).json({
             success: true,
             data: {
@@ -294,6 +300,8 @@ const getComplaintStats = async (req, res) => {
                 resolved: resolvedComplaints,
                 rejected: rejectedComplaints,
                 highPriority: highPriorityComplaints,
+                mediumPriority: mediumPriorityComplaints,
+                lowPriority: lowPriorityComplaints,
             },
         });
     }

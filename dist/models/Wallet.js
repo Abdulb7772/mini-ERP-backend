@@ -34,46 +34,31 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 const mongoose_1 = __importStar(require("mongoose"));
-const NotificationSchema = new mongoose_1.Schema({
+const walletSchema = new mongoose_1.Schema({
     userId: {
-        type: mongoose_1.default.Schema.Types.ObjectId,
+        type: mongoose_1.Schema.Types.ObjectId,
+        ref: 'User',
         required: true,
-        refPath: "userModel",
+        unique: true,
     },
-    userModel: {
-        type: String,
-        required: true,
-        enum: ["User", "Customer"],
+    balance: {
+        type: Number,
+        default: 0,
+        min: 0,
     },
-    type: {
-        type: String,
-        enum: ["complaint_filed", "complaint_replied", "order_status", "refund_request", "refund_response", "general"],
-        required: true,
+    totalEarned: {
+        type: Number,
+        default: 0,
+        min: 0,
     },
-    title: {
-        type: String,
-        required: true,
-        trim: true,
-    },
-    message: {
-        type: String,
-        required: true,
-        trim: true,
-    },
-    relatedId: {
-        type: mongoose_1.default.Schema.Types.ObjectId,
-    },
-    relatedModel: {
-        type: String,
-        enum: ["Complaint", "Order"],
-    },
-    isRead: {
-        type: Boolean,
-        default: false,
+    totalSpent: {
+        type: Number,
+        default: 0,
+        min: 0,
     },
 }, {
     timestamps: true,
 });
-// Index for faster queries
-NotificationSchema.index({ userId: 1, isRead: 1, createdAt: -1 });
-exports.default = mongoose_1.default.model("Notification", NotificationSchema);
+// Index for fast user lookup
+walletSchema.index({ userId: 1 });
+exports.default = mongoose_1.default.model('Wallet', walletSchema);

@@ -41,9 +41,13 @@ const Order_1 = __importDefault(require("../models/Order"));
 const Product_1 = __importDefault(require("../models/Product"));
 const Variation_1 = __importDefault(require("../models/Variation"));
 const Customer_1 = __importDefault(require("../models/Customer"));
+const User_1 = __importDefault(require("../models/User"));
+const Notification_1 = __importDefault(require("../models/Notification"));
+const mongoose_1 = __importDefault(require("mongoose"));
 const errorHandler_1 = require("../middlewares/errorHandler");
 const email_1 = require("../utils/email");
 const notificationController_1 = require("../controllers/notificationController");
+const walletController_1 = require("./walletController");
 // Import Stripe with proper error handling
 if (!process.env.STRIPE_SECRET_KEY) {
     console.error('WARNING: STRIPE_SECRET_KEY is not set in environment variables');
@@ -91,7 +95,7 @@ const getOrder = async (req, res, next) => {
 exports.getOrder = getOrder;
 const createOrder = async (req, res, next) => {
     try {
-        const { customerId, items, notes, phone, shippingAddress, paymentMethod, paymentStatus, transactionId, totalAmount: requestTotalAmount } = req.body;
+        const { customerId, items, notes, phone, shippingAddress, paymentMethod, paymentStatus, transactionId, totalAmount: requestTotalAmount, walletPointsUsed } = req.body;
         let finalCustomerId = customerId;
         // If no customerId provided, try to find or create customer from user info
         if (!finalCustomerId && req.user?.userId) {
@@ -169,14 +173,28 @@ const createOrder = async (req, res, next) => {
             console.log('=== Order Item Debug ===');
             console.log('Full item:', JSON.stringify(item, null, 2));
             console.log('productId:', productId);
+            console.log('productId type:', typeof productId);
             console.log('variationId:', item.variationId);
             console.log('=======================');
             if (!productId) {
                 throw new errorHandler_1.AppError("Product ID is required for each item", 400);
             }
-            const product = await Product_1.default.findById(productId);
+            // Validate ObjectId format
+            if (!mongoose_1.default.Types.ObjectId.isValid(productId)) {
+                throw new errorHandler_1.AppError(`Invalid product ID format: ${productId}`, 400);
+            }
+            // Convert to ObjectId if it's a string
+            const productObjectId = typeof productId === 'string'
+                ? new mongoose_1.default.Types.ObjectId(productId)
+                : productId;
+            console.log('Looking up product with ObjectId:', productObjectId);
+            const product = await Product_1.default.findById(productObjectId);
+            console.log('Product found:', product ? `Yes - ${product.name}` : 'No');
             if (!product) {
-                throw new errorHandler_1.AppError(`Product not found: ${productId}`, 404);
+                // Additional debug: Check if any products exist
+                const totalProducts = await Product_1.default.countDocuments();
+                console.log('Total products in database:', totalProducts);
+                throw new errorHandler_1.AppError(`Product not found with ID: ${productId}. This product may have been deleted or the ID is incorrect. Please refresh your cart and try again.`, 404);
             }
             let price = item.price || product.price;
             let availableStock = product.stock;
@@ -194,7 +212,7 @@ const createOrder = async (req, res, next) => {
             const subtotal = price * item.quantity;
             totalAmount += subtotal;
             orderItems.push({
-                productId: productId,
+                productId: productObjectId,
                 variationId: item.variationId,
                 quantity: item.quantity,
                 price,
@@ -206,7 +224,7 @@ const createOrder = async (req, res, next) => {
                 });
             }
             else {
-                await Product_1.default.findByIdAndUpdate(productId, {
+                await Product_1.default.findByIdAndUpdate(productObjectId, {
                     $inc: { stock: -item.quantity },
                 });
             }
@@ -223,10 +241,12 @@ const createOrder = async (req, res, next) => {
         const order = await Order_1.default.create({
             orderNumber,
             customerId: finalCustomerId,
+            userId: req.user?.userId,
             items: orderItems,
             totalAmount: finalTotalAmount,
             paymentStatus: paymentStatus || "unpaid",
             paidAmount: paymentStatus === "paid" ? finalTotalAmount : 0,
+            walletPointsUsed: walletPointsUsed || 0,
             notes: notes || `Payment Method: ${paymentMethod || "N/A"}${transactionId ? `, Transaction ID: ${transactionId}` : ""}`,
             createdBy: req.user?.userId,
         });
@@ -266,9 +286,27 @@ const createOrder = async (req, res, next) => {
             console.error("Error sending order confirmation email:", emailError);
             // Don't fail order creation if email fails
         }
+        // Deduct wallet points if used
+        let walletMessage = '';
+        if (walletPointsUsed && walletPointsUsed > 0 && req.user?.userId) {
+            try {
+                const result = await (0, walletController_1.deductPoints)(new mongoose_1.default.Types.ObjectId(req.user.userId), walletPointsUsed, 'purchase', `Used wallet points for order ${order.orderNumber}`, order._id);
+                if (result.success) {
+                    walletMessage = ` (${walletPointsUsed} wallet points used)`;
+                }
+                else {
+                    console.error('Failed to deduct wallet points:', result.message);
+                    // Don't fail the order if wallet deduction fails
+                }
+            }
+            catch (walletError) {
+                console.error('Error deducting wallet points:', walletError);
+                // Don't fail the order if wallet deduction fails
+            }
+        }
         res.status(201).json({
             status: "success",
-            message: "Order placed successfully! Confirmation email sent.",
+            message: "Order placed successfully! Confirmation email sent." + walletMessage,
             data: populatedOrder,
         });
     }
@@ -342,6 +380,7 @@ const cancelOrder = async (req, res, next) => {
         if (order.status === "cancelled") {
             throw new errorHandler_1.AppError("Order is already cancelled", 400);
         }
+        // Restore stock for cancelled items
         for (const item of order.items) {
             if (item.variationId) {
                 await Variation_1.default.findByIdAndUpdate(item.variationId, {
@@ -356,9 +395,26 @@ const cancelOrder = async (req, res, next) => {
         }
         order.status = "cancelled";
         await order.save();
+        // Note: Wallet refunds are processed manually by admin through the refund management system
+        // Automatic refunds have been disabled to allow admin review before crediting wallet points
+        // Create notification for all admins if order was paid (refund request)
+        if (order.paymentStatus === 'paid') {
+            const admins = await User_1.default.find({ role: { $in: ['admin', 'superadmin'] } });
+            const notifications = admins.map(admin => ({
+                userId: admin._id,
+                userModel: 'User',
+                type: 'refund_request',
+                title: 'New Refund Request',
+                message: `Order ${order.orderNumber} has been cancelled and requires refund approval. Amount: $${order.totalAmount}`,
+                relatedId: order._id,
+                relatedModel: 'Order',
+                isRead: false,
+            }));
+            await Notification_1.default.insertMany(notifications);
+        }
         res.status(200).json({
             status: "success",
-            message: "Order cancelled successfully",
+            message: "Order cancelled successfully. Refund pending admin approval.",
             data: order,
         });
     }

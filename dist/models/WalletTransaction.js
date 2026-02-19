@@ -34,46 +34,53 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 const mongoose_1 = __importStar(require("mongoose"));
-const NotificationSchema = new mongoose_1.Schema({
-    userId: {
-        type: mongoose_1.default.Schema.Types.ObjectId,
+const walletTransactionSchema = new mongoose_1.Schema({
+    walletId: {
+        type: mongoose_1.Schema.Types.ObjectId,
+        ref: 'Wallet',
         required: true,
-        refPath: "userModel",
     },
-    userModel: {
-        type: String,
+    userId: {
+        type: mongoose_1.Schema.Types.ObjectId,
+        ref: 'User',
         required: true,
-        enum: ["User", "Customer"],
     },
     type: {
         type: String,
-        enum: ["complaint_filed", "complaint_replied", "order_status", "refund_request", "refund_response", "general"],
+        enum: ['credit', 'debit'],
         required: true,
     },
-    title: {
+    amount: {
+        type: Number,
+        required: true,
+        min: 0,
+    },
+    source: {
+        type: String,
+        enum: ['refund', 'purchase', 'admin_credit', 'admin_debit', 'order_cancellation'],
+        required: true,
+    },
+    orderId: {
+        type: mongoose_1.Schema.Types.ObjectId,
+        ref: 'Order',
+    },
+    description: {
         type: String,
         required: true,
-        trim: true,
     },
-    message: {
-        type: String,
+    balanceAfter: {
+        type: Number,
         required: true,
-        trim: true,
     },
-    relatedId: {
-        type: mongoose_1.default.Schema.Types.ObjectId,
-    },
-    relatedModel: {
-        type: String,
-        enum: ["Complaint", "Order"],
-    },
-    isRead: {
-        type: Boolean,
-        default: false,
+    processedBy: {
+        type: mongoose_1.Schema.Types.ObjectId,
+        ref: 'User',
     },
 }, {
     timestamps: true,
 });
-// Index for faster queries
-NotificationSchema.index({ userId: 1, isRead: 1, createdAt: -1 });
-exports.default = mongoose_1.default.model("Notification", NotificationSchema);
+// Indexes for efficient queries
+walletTransactionSchema.index({ walletId: 1, createdAt: -1 });
+walletTransactionSchema.index({ userId: 1, createdAt: -1 });
+walletTransactionSchema.index({ orderId: 1 });
+exports.default = mongoose_1.default.model('WalletTransaction', walletTransactionSchema);
