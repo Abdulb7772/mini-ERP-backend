@@ -17,7 +17,7 @@ export const getRefundableOrders = async (req: AuthRequest, res: Response): Prom
     // Build query for paid orders
     const query: any = {
       paymentStatus: 'paid',
-      userId: { $ne: null }, // Only get orders with valid userId
+      customerId: { $ne: null }, // Only get orders with valid customerId
     };
 
     // Filter by order status if specified
@@ -40,7 +40,7 @@ export const getRefundableOrders = async (req: AuthRequest, res: Response): Prom
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(parseInt(limit as string))
-        .populate('userId', 'name email')
+        .populate('customerId', 'name email')
         .populate('items.productId', 'name images'),
       Order.countDocuments(query),
     ]);
@@ -49,7 +49,7 @@ export const getRefundableOrders = async (req: AuthRequest, res: Response): Prom
     const ordersWithWalletInfo = await Promise.all(
       orders.map(async (order) => {
         const orderObj = order.toObject();
-        const wallet = await Wallet.findOne({ userId: (order as any).userId });
+        const wallet = await Wallet.findOne({ userId: (order as any).customerId });
         
         // Check if this order has been refunded
         const refundTransaction = await WalletTransaction.findOne({
@@ -160,9 +160,9 @@ export const processRefund = async (req: AuthRequest, res: Response): Promise<vo
 
     // Add points to user's wallet
     const description = reason || `Refund for order ${order.orderNumber}`;
-    const userId = (order as any).userId;
+    const customerId = (order as any).customerId;
     const result = await addPoints(
-      userId instanceof mongoose.Types.ObjectId ? userId : new mongoose.Types.ObjectId(userId as string),
+      customerId instanceof mongoose.Types.ObjectId ? customerId : new mongoose.Types.ObjectId(customerId as string),
       amount,
       'refund',
       description,
@@ -180,7 +180,7 @@ export const processRefund = async (req: AuthRequest, res: Response): Promise<vo
 
     // Create notification for customer about refund approval
     await Notification.create({
-      userId: userId,
+      userId: customerId,
       userModel: 'Customer',
       type: 'refund_response',
       title: 'Refund Approved',
@@ -333,7 +333,7 @@ export const declineRefund = async (req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
-    const userId = (order as any).userId;
+    const customerId = (order as any).customerId;
     const declineReason = reason || 'No reason provided';
 
     // Mark order as refund declined
@@ -344,7 +344,7 @@ export const declineRefund = async (req: AuthRequest, res: Response): Promise<vo
 
     // Create notification for customer about refund decline
     await Notification.create({
-      userId: userId,
+      userId: customerId,
       userModel: 'Customer',
       type: 'refund_response',
       title: 'Refund Declined',

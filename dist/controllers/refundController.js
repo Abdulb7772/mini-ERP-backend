@@ -19,7 +19,7 @@ const getRefundableOrders = async (req, res) => {
         // Build query for paid orders
         const query = {
             paymentStatus: 'paid',
-            userId: { $ne: null }, // Only get orders with valid userId
+            customerId: { $ne: null }, // Only get orders with valid customerId
         };
         // Filter by order status if specified
         if (status && status !== 'all') {
@@ -38,14 +38,14 @@ const getRefundableOrders = async (req, res) => {
                 .sort({ createdAt: -1 })
                 .skip(skip)
                 .limit(parseInt(limit))
-                .populate('userId', 'name email')
+                .populate('customerId', 'name email')
                 .populate('items.productId', 'name images'),
             Order_1.default.countDocuments(query),
         ]);
         // Get wallet info for each order's user to show current balance
         const ordersWithWalletInfo = await Promise.all(orders.map(async (order) => {
             const orderObj = order.toObject();
-            const wallet = await Wallet_1.default.findOne({ userId: order.userId });
+            const wallet = await Wallet_1.default.findOne({ userId: order.customerId });
             // Check if this order has been refunded
             const refundTransaction = await WalletTransaction_1.default.findOne({
                 orderId: order._id,
@@ -144,8 +144,8 @@ const processRefund = async (req, res) => {
         }
         // Add points to user's wallet
         const description = reason || `Refund for order ${order.orderNumber}`;
-        const userId = order.userId;
-        const result = await (0, walletController_1.addPoints)(userId instanceof mongoose_1.default.Types.ObjectId ? userId : new mongoose_1.default.Types.ObjectId(userId), amount, 'refund', description, order._id, new mongoose_1.default.Types.ObjectId(adminId));
+        const customerId = order.customerId;
+        const result = await (0, walletController_1.addPoints)(customerId instanceof mongoose_1.default.Types.ObjectId ? customerId : new mongoose_1.default.Types.ObjectId(customerId), amount, 'refund', description, order._id, new mongoose_1.default.Types.ObjectId(adminId));
         if (!result.success) {
             res.status(500).json({
                 success: false,
@@ -155,7 +155,7 @@ const processRefund = async (req, res) => {
         }
         // Create notification for customer about refund approval
         await Notification_1.default.create({
-            userId: userId,
+            userId: customerId,
             userModel: 'Customer',
             type: 'refund_response',
             title: 'Refund Approved',
@@ -299,7 +299,7 @@ const declineRefund = async (req, res) => {
             });
             return;
         }
-        const userId = order.userId;
+        const customerId = order.customerId;
         const declineReason = reason || 'No reason provided';
         // Mark order as refund declined
         order.refundDeclined = true;
@@ -308,7 +308,7 @@ const declineRefund = async (req, res) => {
         await order.save();
         // Create notification for customer about refund decline
         await Notification_1.default.create({
-            userId: userId,
+            userId: customerId,
             userModel: 'Customer',
             type: 'refund_response',
             title: 'Refund Declined',
