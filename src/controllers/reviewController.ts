@@ -445,7 +445,7 @@ export const checkReviewEligibility = async (
   }
 };
 
-// Mark review as helpful
+// Mark review as helpful (toggle)
 export const markReviewHelpful = async (
   req: AuthRequest,
   res: Response,
@@ -465,18 +465,23 @@ export const markReviewHelpful = async (
     }
 
     // Check if user has already marked this review as helpful
-    if (review.helpfulBy.some((id) => id.toString() === userId)) {
-      throw new AppError("You have already marked this review as helpful", 400);
-    }
+    const alreadyMarked = review.helpfulBy.some((id) => id.toString() === userId);
 
-    // Add user to helpfulBy array and increment helpful count
-    review.helpfulBy.push(userId as any);
-    review.helpful += 1;
+    if (alreadyMarked) {
+      // Remove user from helpfulBy array and decrement helpful count
+      review.helpfulBy = review.helpfulBy.filter((id) => id.toString() !== userId);
+      review.helpful = Math.max(0, review.helpful - 1);
+    } else {
+      // Add user to helpfulBy array and increment helpful count
+      review.helpfulBy.push(userId as any);
+      review.helpful += 1;
+    }
+    
     await review.save();
 
     res.status(200).json({
       status: "success",
-      data: { helpful: review.helpful },
+      data: { helpful: review.helpful, marked: !alreadyMarked },
     });
   } catch (error) {
     next(error);
