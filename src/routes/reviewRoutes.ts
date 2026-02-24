@@ -38,23 +38,23 @@ router.delete("/:id", deleteReview);
 router.post("/:id/helpful", markReviewHelpful);
 
 // Admin routes
-router.get("/", authorize("admin", "manager"), getReviews);
-router.get("/:id", authorize("admin", "manager"), getReview);
+router.get("/", authorize("admin", "customer_manager"), getReviews);
+router.get("/:id", authorize("admin", "customer_manager"), getReview);
 router.patch(
   "/:id/status",
-  authorize("admin", "manager"),
+  authorize("admin", "customer_manager"),
   updateReviewStatusValidator,
   validate,
   updateReviewStatus
 );
 router.post(
   "/:id/reply",
-  authorize("admin", "manager", "staff"),
+  authorize("admin", "customer_manager", "staff"),
   addReviewReply
 );
 router.delete(
   "/:id/reply",
-  authorize("admin", "manager", "staff"),
+  authorize("admin", "customer_manager", "staff"),
   deleteReviewReply
 );
 

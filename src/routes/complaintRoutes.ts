@@ -31,13 +31,13 @@ router.get("/my-complaints", authenticate, authorize("customer"), getCustomerCom
 router.get("/can-file/:orderId", authenticate, authorize("customer"), canFileComplaint);
 
 // Admin/Staff routes
-router.get("/", authenticate, authorize("admin", "staff", "manager"), getAllComplaints);
-router.get("/stats", authenticate, authorize("admin", "staff", "manager"), getComplaintStats);
+router.get("/", authenticate, authorize("admin", "staff", "customer_manager"), getAllComplaints);
+router.get("/stats", authenticate, authorize("admin", "staff", "customer_manager"), getComplaintStats);
 router.get("/:id", authenticate, getComplaintById);
 router.put(
   "/:id",
   authenticate,
-  authorize("admin", "staff", "manager"),
+  authorize("admin", "staff", "customer_manager"),
   updateComplaintValidator,
   validate,
   updateComplaintStatus

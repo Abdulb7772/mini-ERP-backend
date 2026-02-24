@@ -21,14 +21,14 @@ router.get("/", getCustomers);
 router.get("/:id", getCustomer);
 router.post(
   "/",
-  authorize("admin", "manager"),
+  authorize("admin", "customer_manager"),
   createCustomerValidator,
   validate,
   createCustomer
 );
 router.put(
   "/:id",
-  authorize("admin", "manager"),
+  authorize("admin", "customer_manager"),
   updateCustomerValidator,
   validate,
   updateCustomer

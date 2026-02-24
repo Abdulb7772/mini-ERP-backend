@@ -9,13 +9,24 @@ export const getCustomers = async (
   next: NextFunction
 ) => {
   try {
-    const customers = await Customer.find({ isActive: true }).sort({
-      createdAt: -1,
-    });
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    
+    const query = { isActive: true };
+    const total = await Customer.countDocuments(query);
+    const customers = await Customer.find(query)
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit);
 
     res.status(200).json({
       status: "success",
       data: customers,
+      pagination: {
+        total,
+        page,
+        pages: Math.ceil(total / limit),
+      },
     });
   } catch (error) {
     next(error);

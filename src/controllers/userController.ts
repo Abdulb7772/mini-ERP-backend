@@ -16,7 +16,10 @@ export const getUsers = async (
   next: NextFunction
 ) => {
   try {
-    const users = await User.find().select("-password").sort({ createdAt: -1 });
+    const users = await User.find()
+      .select("-password")
+      .populate("teams", "name")
+      .sort({ createdAt: -1 });
 
     res.status(200).json({
       status: "success",
@@ -33,7 +36,7 @@ export const createUser = async (
   next: NextFunction
 ) => {
   try {
-    const { name, email, password, role } = req.body;
+    const { name, email, password, role, teams } = req.body;
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
@@ -54,6 +57,7 @@ export const createUser = async (
       email,
       password: hashedPassword,
       role,
+      teams: teams || [],
       verificationToken,
       verificationTokenExpires,
     });
@@ -95,7 +99,7 @@ export const updateUser = async (
 ) => {
   try {
     const { id } = req.params;
-    const { name, email, role } = req.body;
+    const { name, email, role, teams } = req.body;
 
     const user = await User.findById(id);
     if (!user) {
@@ -105,6 +109,7 @@ export const updateUser = async (
     if (name) user.name = name;
     if (email) user.email = email;
     if (role) user.role = role;
+    if (teams !== undefined) user.teams = teams;
 
     await user.save();
 

@@ -17,10 +17,10 @@ router.get("/published", getPublishedBlogs);
 router.get("/:id", getBlogById);
 
 // Admin routes
-router.get("/", authenticate, authorize("admin"), getAllBlogs);
-router.post("/", authenticate, authorize("admin"), createBlog);
-router.put("/:id", authenticate, authorize("admin"), updateBlog);
-router.patch("/:id/toggle-status", authenticate, authorize("admin"), toggleBlogStatus);
-router.delete("/:id", authenticate, authorize("admin"), deleteBlog);
+router.get("/", authenticate, authorize("admin", "blog_manager"), getAllBlogs);
+router.post("/", authenticate, authorize("admin", "blog_manager"), createBlog);
+router.put("/:id", authenticate, authorize("admin", "blog_manager"), updateBlog);
+router.patch("/:id/toggle-status", authenticate, authorize("admin", "blog_manager"), toggleBlogStatus);
+router.delete("/:id", authenticate, authorize("admin", "blog_manager"), deleteBlog);
 
 export default router;

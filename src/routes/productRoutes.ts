@@ -26,20 +26,20 @@ router.use(authenticate);
 
 router.post(
   "/",
-  authorize("admin", "manager"),
+  authorize("admin", "inventory_manager"),
   createProductValidator,
   validate,
   createProduct
 );
 router.put(
   "/:id",
-  authorize("admin", "manager"),
+  authorize("admin", "inventory_manager"),
   updateProductValidator,
   validate,
   updateProduct
 );
-router.delete("/:id", authorize("admin", "manager"), deleteProduct);
-router.patch("/:id/stock", authorize("admin", "manager", "staff"), updateProductStock);
-router.patch("/variations/:id/stock", authorize("admin", "manager", "staff"), updateVariationStock);
+router.delete("/:id", authorize("admin", "inventory_manager"), deleteProduct);
+router.patch("/:id/stock", authorize("admin", "inventory_manager", "staff"), updateProductStock);
+router.patch("/variations/:id/stock", authorize("admin", "inventory_manager", "staff"), updateVariationStock);
 
 export default router;

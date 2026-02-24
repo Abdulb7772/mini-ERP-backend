@@ -1,12 +1,15 @@
-// Load environment variables FIRST before any other imports
+
 import dotenv from "dotenv";
 dotenv.config();
 
 import express from "express";
+import http from "http";
+import { Server as SocketIOServer } from "socket.io";
 import cors from "cors";
 import { connectDB } from "./config/db";
 import { errorHandler } from "./middlewares/errorHandler";
 import { requestLogger, errorLogger } from "./middlewares/logger";
+import { initializeSocketIO } from "./services/socketService";
 
 // Import routes
 import authRoutes from "./routes/authRoutes";
@@ -29,8 +32,11 @@ import uploadRoutes from "./routes/uploadRoutes";
 import fileProxyRoutes from "./routes/fileProxyRoutes";
 import walletRoutes from "./routes/walletRoutes";
 import refundRoutes from "./routes/refundRoutes";
+import teamRoutes from "./routes/teamRoutes";
+import chatRoutes from "./routes/chatRoutes";
 
 const app = express();
+const server = http.createServer(app);
 const PORT = process.env.PORT || 5000;
 
 // Set request timeout to 25 seconds (before Render's 30s limit)
@@ -46,19 +52,19 @@ app.use((req, res, next) => {
 });
 
 // CORS Configuration
+const allowedOrigins = [
+  'https://mini-erp-frontend-uzn9.vercel.app',
+  'https://mini-erp-admin-side.vercel.app',
+  'https://mini-erp-admin-side-mimy.vercel.app',
+  'https://mini-erp-client-side-lv6t.vercel.app',
+  'https://mini-erp-client-side-r4z1.vercel.app',
+  'https://mini-erp-client-side-ej38.vercel.app',
+  'http://localhost:3000',
+  'http://localhost:3001'
+];
+
 const corsOptions = {
   origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
-    const allowedOrigins = [
-      'https://mini-erp-frontend-uzn9.vercel.app',
-      'https://mini-erp-admin-side.vercel.app',
-      'https://mini-erp-admin-side-mimy.vercel.app',
-      'https://mini-erp-client-side-lv6t.vercel.app',
-      'https://mini-erp-client-side-r4z1.vercel.app',
-      'https://mini-erp-client-side-ej38.vercel.app',
-      'http://localhost:3000',
-      'http://localhost:3001'
-    ];
-    
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
     
@@ -78,6 +84,28 @@ const corsOptions = {
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 };
+
+// Initialize Socket.IO with CORS
+const io = new SocketIOServer(server, {
+  cors: {
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      if (origin.includes('vercel.app') && origin.includes('mini-erp')) {
+        return callback(null, true);
+      }
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      callback(null, true);
+    },
+    credentials: true,
+    methods: ['GET', 'POST']
+  },
+  transports: ['websocket', 'polling'],
+});
+
+// Initialize Socket.IO handlers
+initializeSocketIO(io);
 
 // Middleware
 app.use(cors(corsOptions));
@@ -113,6 +141,8 @@ app.use("/api/upload", uploadRoutes);
 app.use("/api/file-proxy", fileProxyRoutes);
 app.use("/api/wallet", walletRoutes);
 app.use("/api/refund", refundRoutes);
+app.use("/api/teams", teamRoutes);
+app.use("/api/chats", chatRoutes);
 
 // Add error logging middleware (BEFORE error handler)
 app.use(errorLogger);
@@ -140,10 +170,12 @@ console.log("🔧".repeat(40) + "\n");
 // Connect to MongoDB and start server
 connectDB(); // Fire and forget - server will start regardless
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log("\n" + "🚀".repeat(40));
   console.log(`✅ Server is running on port ${PORT}`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || "development"}`);
   console.log(`📡 API Ready: http://localhost:${PORT}/api`);
+  console.log(`💬 Socket.IO Ready: ws://localhost:${PORT}`);
   console.log("🚀".repeat(40) + "\n");
 });
+

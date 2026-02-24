@@ -24,6 +24,10 @@ export const getOrders = async (
   next: NextFunction
 ) => {
   try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    
+    const total = await Order.countDocuments();
     const orders = await Order.find()
       .populate("customerId", "name email phone address")
       .populate("createdBy", "name email")
@@ -31,11 +35,67 @@ export const getOrders = async (
         path: "items.productId",
         select: "name sku"
       })
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit);
 
     res.status(200).json({
       status: "success",
       data: orders,
+      pagination: {
+        total,
+        page,
+        pages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getMyOrders = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const status = req.query.status as string;
+    
+    // Get customer ID from authenticated user
+    const customerId = req.user?.userId;
+    
+    if (!customerId) {
+      throw new AppError("Customer not found", 404);
+    }
+    
+    const query: any = { customerId };
+    
+    // Add status filter if provided
+    if (status) {
+      query.status = status;
+    }
+    
+    const total = await Order.countDocuments(query);
+    const orders = await Order.find(query)
+      .populate("customerId", "name email phone address")
+      .populate({
+        path: "items.productId",
+        select: "name sku"
+      })
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit);
+
+    res.status(200).json({
+      status: "success",
+      data: orders,
+      pagination: {
+        total,
+        page,
+        pages: Math.ceil(total / limit),
+      },
     });
   } catch (error) {
     next(error);
@@ -56,6 +116,17 @@ export const getOrder = async (
 
     if (!order) {
       throw new AppError("Order not found", 404);
+    }
+
+    // Check if user is authorized to view this order
+    // Admins, order_managers, and staff can view any order
+    // Customers can only view their own orders
+    const userRole = req.user?.role;
+    const isAdmin = ["admin", "order_manager", "staff"].includes(userRole || "");
+    const isCustomerViewingOwnOrder = order.customerId._id.toString() === req.user?.userId;
+
+    if (!isAdmin && !isCustomerViewingOwnOrder) {
+      throw new AppError("You are not authorized to view this order", 403);
     }
 
     res.status(200).json({
@@ -462,7 +533,7 @@ export const cancelOrder = async (
 
     // Create notification for all admins if order was paid (refund request)
     if (order.paymentStatus === 'paid') {
-      const admins = await User.find({ role: { $in: ['admin', 'superadmin'] } });
+      const admins = await User.find({ role: { $in: ['admin', 'order_manager'] } });
       
       const notifications = admins.map(admin => ({
         userId: admin._id,

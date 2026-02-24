@@ -65,7 +65,7 @@ export const createComplaint = async (req: AuthRequest, res: Response) => {
 
     // Create notification for admins and staff
     try {
-      const adminUsers = await User.find({ role: { $in: ["admin", "staff"] }, isActive: true });
+      const adminUsers = await User.find({ role: { $in: ["admin", "customer_manager", "staff"] }, isActive: true });
       const orderNumber = populatedComplaint && typeof populatedComplaint.orderId === 'object' && 'orderNumber' in populatedComplaint.orderId
         ? (populatedComplaint.orderId as any).orderNumber
         : "N/A";

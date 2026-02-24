@@ -12,10 +12,10 @@ const router = express.Router();
 
 router.use(authenticate);
 
-router.get("/", authorize("admin", "manager"), getAttendanceByDate);
-router.get("/my-attendance", authorize("staff"), getMyAttendance);
-router.get("/history", authorize("admin", "manager"), getAttendanceHistory);
-router.post("/check-in", authorize("admin", "manager", "staff"), checkIn);
-router.post("/check-out", authorize("admin", "manager", "staff"), checkOut);
+router.get("/", authorize("admin", "employee_manager"), getAttendanceByDate);
+router.get("/my-attendance", getMyAttendance); // All authenticated users can view their own attendance
+router.get("/history", authorize("admin", "employee_manager"), getAttendanceHistory);
+router.post("/check-in", checkIn); // All authenticated users can check in
+router.post("/check-out", checkOut); // All authenticated users can check out
 
 export default router;

@@ -17,10 +17,10 @@ router.get("/active", getActiveEmployees);
 router.get("/:id", getEmployeeById);
 
 // Admin routes
-router.get("/", authenticate, authorize("admin"), getAllEmployees);
-router.post("/", authenticate, authorize("admin"), createEmployee);
-router.put("/:id", authenticate, authorize("admin"), updateEmployee);
-router.patch("/:id/toggle-status", authenticate, authorize("admin"), toggleEmployeeStatus);
-router.delete("/:id", authenticate, authorize("admin"), deleteEmployee);
+router.get("/", authenticate, authorize("admin", "employee_manager"), getAllEmployees);
+router.post("/", authenticate, authorize("admin", "employee_manager"), createEmployee);
+router.put("/:id", authenticate, authorize("admin", "employee_manager"), updateEmployee);
+router.patch("/:id/toggle-status", authenticate, authorize("admin", "employee_manager"), toggleEmployeeStatus);
+router.delete("/:id", authenticate, authorize("admin", "employee_manager"), deleteEmployee);
 
 export default router;

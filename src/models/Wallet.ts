@@ -38,7 +38,7 @@ const walletSchema = new Schema<IWallet>(
   }
 );
 
-// Index for fast user lookup
-walletSchema.index({ userId: 1 });
+// Index is already created by unique: true on userId field
+// Removed duplicate: walletSchema.index({ userId: 1 });
 
 export default mongoose.model<IWallet>('Wallet', walletSchema);
