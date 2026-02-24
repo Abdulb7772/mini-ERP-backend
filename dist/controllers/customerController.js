@@ -8,12 +8,22 @@ const Customer_1 = __importDefault(require("../models/Customer"));
 const errorHandler_1 = require("../middlewares/errorHandler");
 const getCustomers = async (req, res, next) => {
     try {
-        const customers = await Customer_1.default.find({ isActive: true }).sort({
-            createdAt: -1,
-        });
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const query = { isActive: true };
+        const total = await Customer_1.default.countDocuments(query);
+        const customers = await Customer_1.default.find(query)
+            .sort({ createdAt: -1 })
+            .skip((page - 1) * limit)
+            .limit(limit);
         res.status(200).json({
             status: "success",
             data: customers,
+            pagination: {
+                total,
+                page,
+                pages: Math.ceil(total / limit),
+            },
         });
     }
     catch (error) {

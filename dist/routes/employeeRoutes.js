@@ -11,9 +11,9 @@ const router = express_1.default.Router();
 router.get("/active", employeeController_1.getActiveEmployees);
 router.get("/:id", employeeController_1.getEmployeeById);
 // Admin routes
-router.get("/", auth_1.authenticate, (0, auth_1.authorize)("admin"), employeeController_1.getAllEmployees);
-router.post("/", auth_1.authenticate, (0, auth_1.authorize)("admin"), employeeController_1.createEmployee);
-router.put("/:id", auth_1.authenticate, (0, auth_1.authorize)("admin"), employeeController_1.updateEmployee);
-router.patch("/:id/toggle-status", auth_1.authenticate, (0, auth_1.authorize)("admin"), employeeController_1.toggleEmployeeStatus);
-router.delete("/:id", auth_1.authenticate, (0, auth_1.authorize)("admin"), employeeController_1.deleteEmployee);
+router.get("/", auth_1.authenticate, (0, auth_1.authorize)("admin", "employee_manager"), employeeController_1.getAllEmployees);
+router.post("/", auth_1.authenticate, (0, auth_1.authorize)("admin", "employee_manager"), employeeController_1.createEmployee);
+router.put("/:id", auth_1.authenticate, (0, auth_1.authorize)("admin", "employee_manager"), employeeController_1.updateEmployee);
+router.patch("/:id/toggle-status", auth_1.authenticate, (0, auth_1.authorize)("admin", "employee_manager"), employeeController_1.toggleEmployeeStatus);
+router.delete("/:id", auth_1.authenticate, (0, auth_1.authorize)("admin", "employee_manager"), employeeController_1.deleteEmployee);
 exports.default = router;

@@ -34,48 +34,65 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 const mongoose_1 = __importStar(require("mongoose"));
-const userSchema = new mongoose_1.Schema({
-    name: {
+const messageSchema = new mongoose_1.Schema({
+    chatId: {
+        type: mongoose_1.Schema.Types.ObjectId,
+        ref: "Chat",
+        required: true,
+        index: true,
+    },
+    senderId: {
+        type: mongoose_1.Schema.Types.ObjectId,
+        ref: "User",
+        required: true,
+    },
+    senderRole: {
         type: String,
-        required: [true, "Name is required"],
+        required: true,
+    },
+    senderName: {
+        type: String,
+        required: true,
+    },
+    text: {
+        type: String,
+        required: true,
         trim: true,
     },
-    email: {
+    attachments: [
+        {
+            type: String,
+        },
+    ],
+    contextType: {
         type: String,
-        required: [true, "Email is required"],
-        unique: true,
-        lowercase: true,
-        trim: true,
+        enum: ["order", "product", "customer", "general"],
     },
-    password: {
+    contextId: {
+        type: mongoose_1.Schema.Types.ObjectId,
+    },
+    status: {
         type: String,
-        required: [true, "Password is required"],
-        minlength: 6,
+        enum: ["sent", "delivered", "seen"],
+        default: "sent",
     },
-    role: {
-        type: String,
-        enum: ["admin", "inventory_manager", "employee_manager", "blog_manager", "order_manager", "customer_manager", "report_manager", "staff"],
-        default: "staff",
-    },
-    teams: [{
+    readBy: [
+        {
             type: mongoose_1.Schema.Types.ObjectId,
-            ref: "Team",
-        }],
-    isActive: {
-        type: Boolean,
-        default: true,
-    },
-    isVerified: {
+            ref: "User",
+        },
+    ],
+    isSystemMessage: {
         type: Boolean,
         default: false,
     },
-    verificationToken: {
-        type: String,
-    },
-    verificationTokenExpires: {
-        type: Date,
+    metadata: {
+        type: mongoose_1.Schema.Types.Mixed,
     },
 }, {
     timestamps: true,
 });
-exports.default = mongoose_1.default.model("User", userSchema);
+// Indexes for better query performance
+messageSchema.index({ chatId: 1, createdAt: -1 });
+messageSchema.index({ senderId: 1 });
+exports.default = mongoose_1.default.model("Message", messageSchema);

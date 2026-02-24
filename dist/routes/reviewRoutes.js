@@ -21,9 +21,9 @@ router.put("/:id", reviewValidator_1.updateReviewValidator, validate_1.validate,
 router.delete("/:id", reviewController_1.deleteReview);
 router.post("/:id/helpful", reviewController_1.markReviewHelpful);
 // Admin routes
-router.get("/", (0, auth_1.authorize)("admin", "manager"), reviewController_1.getReviews);
-router.get("/:id", (0, auth_1.authorize)("admin", "manager"), reviewController_1.getReview);
-router.patch("/:id/status", (0, auth_1.authorize)("admin", "manager"), reviewValidator_1.updateReviewStatusValidator, validate_1.validate, reviewController_1.updateReviewStatus);
-router.post("/:id/reply", (0, auth_1.authorize)("admin", "manager", "staff"), reviewController_1.addReviewReply);
-router.delete("/:id/reply", (0, auth_1.authorize)("admin", "manager", "staff"), reviewController_1.deleteReviewReply);
+router.get("/", (0, auth_1.authorize)("admin", "customer_manager"), reviewController_1.getReviews);
+router.get("/:id", (0, auth_1.authorize)("admin", "customer_manager"), reviewController_1.getReview);
+router.patch("/:id/status", (0, auth_1.authorize)("admin", "customer_manager"), reviewValidator_1.updateReviewStatusValidator, validate_1.validate, reviewController_1.updateReviewStatus);
+router.post("/:id/reply", (0, auth_1.authorize)("admin", "customer_manager", "staff"), reviewController_1.addReviewReply);
+router.delete("/:id/reply", (0, auth_1.authorize)("admin", "customer_manager", "staff"), reviewController_1.deleteReviewReply);
 exports.default = router;

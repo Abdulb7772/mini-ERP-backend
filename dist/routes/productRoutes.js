@@ -14,9 +14,9 @@ router.get("/", productController_1.getProducts);
 router.get("/:id", productController_1.getProduct);
 // Protected routes (authentication required)
 router.use(auth_1.authenticate);
-router.post("/", (0, auth_1.authorize)("admin", "manager"), productValidator_1.createProductValidator, validate_1.validate, productController_1.createProduct);
-router.put("/:id", (0, auth_1.authorize)("admin", "manager"), productValidator_1.updateProductValidator, validate_1.validate, productController_1.updateProduct);
-router.delete("/:id", (0, auth_1.authorize)("admin", "manager"), productController_1.deleteProduct);
-router.patch("/:id/stock", (0, auth_1.authorize)("admin", "manager", "staff"), productController_1.updateProductStock);
-router.patch("/variations/:id/stock", (0, auth_1.authorize)("admin", "manager", "staff"), productController_1.updateVariationStock);
+router.post("/", (0, auth_1.authorize)("admin", "inventory_manager"), productValidator_1.createProductValidator, validate_1.validate, productController_1.createProduct);
+router.put("/:id", (0, auth_1.authorize)("admin", "inventory_manager"), productValidator_1.updateProductValidator, validate_1.validate, productController_1.updateProduct);
+router.delete("/:id", (0, auth_1.authorize)("admin", "inventory_manager"), productController_1.deleteProduct);
+router.patch("/:id/stock", (0, auth_1.authorize)("admin", "inventory_manager", "staff"), productController_1.updateProductStock);
+router.patch("/variations/:id/stock", (0, auth_1.authorize)("admin", "inventory_manager", "staff"), productController_1.updateVariationStock);
 exports.default = router;

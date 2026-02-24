@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createPaymentIntent = exports.cancelOrder = exports.updateOrderStatus = exports.updateOrder = exports.createOrder = exports.getOrder = exports.getOrders = void 0;
+exports.createPaymentIntent = exports.cancelOrder = exports.updateOrderStatus = exports.updateOrder = exports.createOrder = exports.getOrder = exports.getMyOrders = exports.getOrders = void 0;
 const Order_1 = __importDefault(require("../models/Order"));
 const Product_1 = __importDefault(require("../models/Product"));
 const Variation_1 = __importDefault(require("../models/Variation"));
@@ -55,6 +55,9 @@ if (!process.env.STRIPE_SECRET_KEY) {
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY || 'sk_test_dummy_key');
 const getOrders = async (req, res, next) => {
     try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const total = await Order_1.default.countDocuments();
         const orders = await Order_1.default.find()
             .populate("customerId", "name email phone address")
             .populate("createdBy", "name email")
@@ -62,10 +65,17 @@ const getOrders = async (req, res, next) => {
             path: "items.productId",
             select: "name sku"
         })
-            .sort({ createdAt: -1 });
+            .sort({ createdAt: -1 })
+            .skip((page - 1) * limit)
+            .limit(limit);
         res.status(200).json({
             status: "success",
             data: orders,
+            pagination: {
+                total,
+                page,
+                pages: Math.ceil(total / limit),
+            },
         });
     }
     catch (error) {
@@ -73,6 +83,46 @@ const getOrders = async (req, res, next) => {
     }
 };
 exports.getOrders = getOrders;
+const getMyOrders = async (req, res, next) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const status = req.query.status;
+        // Get customer ID from authenticated user
+        const customerId = req.user?.userId;
+        if (!customerId) {
+            throw new errorHandler_1.AppError("Customer not found", 404);
+        }
+        const query = { customerId };
+        // Add status filter if provided
+        if (status) {
+            query.status = status;
+        }
+        const total = await Order_1.default.countDocuments(query);
+        const orders = await Order_1.default.find(query)
+            .populate("customerId", "name email phone address")
+            .populate({
+            path: "items.productId",
+            select: "name sku"
+        })
+            .sort({ createdAt: -1 })
+            .skip((page - 1) * limit)
+            .limit(limit);
+        res.status(200).json({
+            status: "success",
+            data: orders,
+            pagination: {
+                total,
+                page,
+                pages: Math.ceil(total / limit),
+            },
+        });
+    }
+    catch (error) {
+        next(error);
+    }
+};
+exports.getMyOrders = getMyOrders;
 const getOrder = async (req, res, next) => {
     try {
         const { id } = req.params;
@@ -82,6 +132,15 @@ const getOrder = async (req, res, next) => {
             .populate("items.productId", "name sku imageUrl images");
         if (!order) {
             throw new errorHandler_1.AppError("Order not found", 404);
+        }
+        // Check if user is authorized to view this order
+        // Admins, order_managers, and staff can view any order
+        // Customers can only view their own orders
+        const userRole = req.user?.role;
+        const isAdmin = ["admin", "order_manager", "staff"].includes(userRole || "");
+        const isCustomerViewingOwnOrder = order.customerId._id.toString() === req.user?.userId;
+        if (!isAdmin && !isCustomerViewingOwnOrder) {
+            throw new errorHandler_1.AppError("You are not authorized to view this order", 403);
         }
         res.status(200).json({
             status: "success",
@@ -399,7 +458,7 @@ const cancelOrder = async (req, res, next) => {
         // Automatic refunds have been disabled to allow admin review before crediting wallet points
         // Create notification for all admins if order was paid (refund request)
         if (order.paymentStatus === 'paid') {
-            const admins = await User_1.default.find({ role: { $in: ['admin', 'superadmin'] } });
+            const admins = await User_1.default.find({ role: { $in: ['admin', 'order_manager'] } });
             const notifications = admins.map(admin => ({
                 userId: admin._id,
                 userModel: 'User',

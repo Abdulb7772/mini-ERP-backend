@@ -34,48 +34,73 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 const mongoose_1 = __importStar(require("mongoose"));
-const userSchema = new mongoose_1.Schema({
-    name: {
+const chatSchema = new mongoose_1.Schema({
+    type: {
         type: String,
-        required: [true, "Name is required"],
-        trim: true,
+        enum: ["internal", "external"],
+        required: true,
+        index: true,
     },
-    email: {
-        type: String,
-        required: [true, "Email is required"],
-        unique: true,
-        lowercase: true,
-        trim: true,
-    },
-    password: {
-        type: String,
-        required: [true, "Password is required"],
-        minlength: 6,
-    },
-    role: {
-        type: String,
-        enum: ["admin", "inventory_manager", "employee_manager", "blog_manager", "order_manager", "customer_manager", "report_manager", "staff"],
-        default: "staff",
-    },
-    teams: [{
+    participants: [
+        {
             type: mongoose_1.Schema.Types.ObjectId,
-            ref: "Team",
-        }],
-    isActive: {
-        type: Boolean,
-        default: true,
-    },
-    isVerified: {
+            ref: "User",
+            required: true,
+        },
+    ],
+    participantRoles: [
+        {
+            type: String,
+            required: true,
+        },
+    ],
+    isGroup: {
         type: Boolean,
         default: false,
     },
-    verificationToken: {
+    groupName: {
         type: String,
+        trim: true,
     },
-    verificationTokenExpires: {
+    department: {
+        type: String,
+        enum: ["sales", "support", "inventory", null],
+        default: null,
+    },
+    contextType: {
+        type: String,
+        enum: ["order", "product", "customer", "general"],
+        default: "general",
+    },
+    contextId: {
+        type: mongoose_1.Schema.Types.ObjectId,
+        refPath: "contextType",
+    },
+    lastMessage: {
+        type: String,
+        default: "",
+    },
+    lastMessageAt: {
         type: Date,
+        default: Date.now,
+    },
+    unreadCount: {
+        type: Map,
+        of: Number,
+        default: new Map(),
+    },
+    createdBy: {
+        type: mongoose_1.Schema.Types.ObjectId,
+        ref: "User",
+        required: true,
     },
 }, {
     timestamps: true,
 });
-exports.default = mongoose_1.default.model("User", userSchema);
+// Indexes for better query performance
+chatSchema.index({ participants: 1 });
+chatSchema.index({ type: 1, participants: 1 });
+chatSchema.index({ department: 1 });
+chatSchema.index({ contextType: 1, contextId: 1 });
+chatSchema.index({ lastMessageAt: -1 });
+exports.default = mongoose_1.default.model("Chat", chatSchema);

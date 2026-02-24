@@ -3,14 +3,16 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-// Load environment variables FIRST before any other imports
 const dotenv_1 = __importDefault(require("dotenv"));
 dotenv_1.default.config();
 const express_1 = __importDefault(require("express"));
+const http_1 = __importDefault(require("http"));
+const socket_io_1 = require("socket.io");
 const cors_1 = __importDefault(require("cors"));
 const db_1 = require("./config/db");
 const errorHandler_1 = require("./middlewares/errorHandler");
 const logger_1 = require("./middlewares/logger");
+const socketService_1 = require("./services/socketService");
 // Import routes
 const authRoutes_1 = __importDefault(require("./routes/authRoutes"));
 const userRoutes_1 = __importDefault(require("./routes/userRoutes"));
@@ -32,7 +34,10 @@ const uploadRoutes_1 = __importDefault(require("./routes/uploadRoutes"));
 const fileProxyRoutes_1 = __importDefault(require("./routes/fileProxyRoutes"));
 const walletRoutes_1 = __importDefault(require("./routes/walletRoutes"));
 const refundRoutes_1 = __importDefault(require("./routes/refundRoutes"));
+const teamRoutes_1 = __importDefault(require("./routes/teamRoutes"));
+const chatRoutes_1 = __importDefault(require("./routes/chatRoutes"));
 const app = (0, express_1.default)();
+const server = http_1.default.createServer(app);
 const PORT = process.env.PORT || 5000;
 // Set request timeout to 25 seconds (before Render's 30s limit)
 app.use((req, res, next) => {
@@ -46,18 +51,18 @@ app.use((req, res, next) => {
     next();
 });
 // CORS Configuration
+const allowedOrigins = [
+    'https://mini-erp-frontend-uzn9.vercel.app',
+    'https://mini-erp-admin-side.vercel.app',
+    'https://mini-erp-admin-side-mimy.vercel.app',
+    'https://mini-erp-client-side-lv6t.vercel.app',
+    'https://mini-erp-client-side-r4z1.vercel.app',
+    'https://mini-erp-client-side-ej38.vercel.app',
+    'http://localhost:3000',
+    'http://localhost:3001'
+];
 const corsOptions = {
     origin: function (origin, callback) {
-        const allowedOrigins = [
-            'https://mini-erp-frontend-uzn9.vercel.app',
-            'https://mini-erp-admin-side.vercel.app',
-            'https://mini-erp-admin-side-mimy.vercel.app',
-            'https://mini-erp-client-side-lv6t.vercel.app',
-            'https://mini-erp-client-side-r4z1.vercel.app',
-            'https://mini-erp-client-side-ej38.vercel.app',
-            'http://localhost:3000',
-            'http://localhost:3001'
-        ];
         // Allow requests with no origin (like mobile apps or curl requests)
         if (!origin)
             return callback(null, true);
@@ -75,6 +80,27 @@ const corsOptions = {
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
 };
+// Initialize Socket.IO with CORS
+const io = new socket_io_1.Server(server, {
+    cors: {
+        origin: (origin, callback) => {
+            if (!origin)
+                return callback(null, true);
+            if (origin.includes('vercel.app') && origin.includes('mini-erp')) {
+                return callback(null, true);
+            }
+            if (allowedOrigins.includes(origin)) {
+                return callback(null, true);
+            }
+            callback(null, true);
+        },
+        credentials: true,
+        methods: ['GET', 'POST']
+    },
+    transports: ['websocket', 'polling'],
+});
+// Initialize Socket.IO handlers
+(0, socketService_1.initializeSocketIO)(io);
 // Middleware
 app.use((0, cors_1.default)(corsOptions));
 app.use(express_1.default.json({ limit: "50mb" }));
@@ -106,6 +132,8 @@ app.use("/api/upload", uploadRoutes_1.default);
 app.use("/api/file-proxy", fileProxyRoutes_1.default);
 app.use("/api/wallet", walletRoutes_1.default);
 app.use("/api/refund", refundRoutes_1.default);
+app.use("/api/teams", teamRoutes_1.default);
+app.use("/api/chats", chatRoutes_1.default);
 // Add error logging middleware (BEFORE error handler)
 app.use(logger_1.errorLogger);
 // Error handler (must be last)
@@ -128,10 +156,11 @@ console.log(`FRONTEND_URL: ${process.env.FRONTEND_URL || "Not set (using default
 console.log("🔧".repeat(40) + "\n");
 // Connect to MongoDB and start server
 (0, db_1.connectDB)(); // Fire and forget - server will start regardless
-app.listen(PORT, () => {
+server.listen(PORT, () => {
     console.log("\n" + "🚀".repeat(40));
     console.log(`✅ Server is running on port ${PORT}`);
     console.log(`🌍 Environment: ${process.env.NODE_ENV || "development"}`);
     console.log(`📡 API Ready: http://localhost:${PORT}/api`);
+    console.log(`💬 Socket.IO Ready: ws://localhost:${PORT}`);
     console.log("🚀".repeat(40) + "\n");
 });

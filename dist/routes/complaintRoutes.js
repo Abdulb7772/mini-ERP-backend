@@ -14,9 +14,9 @@ router.post("/", auth_1.authenticate, (0, auth_1.authorize)("customer"), complai
 router.get("/my-complaints", auth_1.authenticate, (0, auth_1.authorize)("customer"), complaintController_1.getCustomerComplaints);
 router.get("/can-file/:orderId", auth_1.authenticate, (0, auth_1.authorize)("customer"), complaintController_1.canFileComplaint);
 // Admin/Staff routes
-router.get("/", auth_1.authenticate, (0, auth_1.authorize)("admin", "staff", "manager"), complaintController_1.getAllComplaints);
-router.get("/stats", auth_1.authenticate, (0, auth_1.authorize)("admin", "staff", "manager"), complaintController_1.getComplaintStats);
+router.get("/", auth_1.authenticate, (0, auth_1.authorize)("admin", "staff", "customer_manager"), complaintController_1.getAllComplaints);
+router.get("/stats", auth_1.authenticate, (0, auth_1.authorize)("admin", "staff", "customer_manager"), complaintController_1.getComplaintStats);
 router.get("/:id", auth_1.authenticate, complaintController_1.getComplaintById);
-router.put("/:id", auth_1.authenticate, (0, auth_1.authorize)("admin", "staff", "manager"), complaintValidator_1.updateComplaintValidator, validate_1.validate, complaintController_1.updateComplaintStatus);
+router.put("/:id", auth_1.authenticate, (0, auth_1.authorize)("admin", "staff", "customer_manager"), complaintValidator_1.updateComplaintValidator, validate_1.validate, complaintController_1.updateComplaintStatus);
 router.delete("/:id", auth_1.authenticate, (0, auth_1.authorize)("admin"), complaintController_1.deleteComplaint);
 exports.default = router;

@@ -34,48 +34,22 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 const mongoose_1 = __importStar(require("mongoose"));
-const userSchema = new mongoose_1.Schema({
+const teamSchema = new mongoose_1.Schema({
     name: {
         type: String,
-        required: [true, "Name is required"],
+        required: [true, "Team name is required"],
         trim: true,
-    },
-    email: {
-        type: String,
-        required: [true, "Email is required"],
         unique: true,
-        lowercase: true,
+    },
+    description: {
+        type: String,
         trim: true,
     },
-    password: {
-        type: String,
-        required: [true, "Password is required"],
-        minlength: 6,
-    },
-    role: {
-        type: String,
-        enum: ["admin", "inventory_manager", "employee_manager", "blog_manager", "order_manager", "customer_manager", "report_manager", "staff"],
-        default: "staff",
-    },
-    teams: [{
-            type: mongoose_1.Schema.Types.ObjectId,
-            ref: "Team",
-        }],
     isActive: {
         type: Boolean,
         default: true,
     },
-    isVerified: {
-        type: Boolean,
-        default: false,
-    },
-    verificationToken: {
-        type: String,
-    },
-    verificationTokenExpires: {
-        type: Date,
-    },
 }, {
     timestamps: true,
 });
-exports.default = mongoose_1.default.model("User", userSchema);
+exports.default = mongoose_1.default.model("Team", teamSchema);

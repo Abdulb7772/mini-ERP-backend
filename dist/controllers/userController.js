@@ -11,7 +11,10 @@ const errorHandler_1 = require("../middlewares/errorHandler");
 const email_1 = require("../utils/email");
 const getUsers = async (req, res, next) => {
     try {
-        const users = await User_1.default.find().select("-password").sort({ createdAt: -1 });
+        const users = await User_1.default.find()
+            .select("-password")
+            .populate("teams", "name")
+            .sort({ createdAt: -1 });
         res.status(200).json({
             status: "success",
             data: users,
@@ -24,7 +27,7 @@ const getUsers = async (req, res, next) => {
 exports.getUsers = getUsers;
 const createUser = async (req, res, next) => {
     try {
-        const { name, email, password, role } = req.body;
+        const { name, email, password, role, teams } = req.body;
         const existingUser = await User_1.default.findOne({ email });
         if (existingUser) {
             throw new errorHandler_1.AppError("Email already registered", 400);
@@ -41,6 +44,7 @@ const createUser = async (req, res, next) => {
             email,
             password: hashedPassword,
             role,
+            teams: teams || [],
             verificationToken,
             verificationTokenExpires,
         });
@@ -77,7 +81,7 @@ exports.createUser = createUser;
 const updateUser = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const { name, email, role } = req.body;
+        const { name, email, role, teams } = req.body;
         const user = await User_1.default.findById(id);
         if (!user) {
             throw new errorHandler_1.AppError("User not found", 404);
@@ -88,6 +92,8 @@ const updateUser = async (req, res, next) => {
             user.email = email;
         if (role)
             user.role = role;
+        if (teams !== undefined)
+            user.teams = teams;
         await user.save();
         res.status(200).json({
             status: "success",
