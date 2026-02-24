@@ -22,7 +22,7 @@ router.post("/verify-email", verifyEmail); // Public route
 // Protected routes
 router.use(authenticate);
 
-router.get("/", authorize("admin", "manager"), getUsers);
+router.get("/", authorize("admin", "top_manager", "manager"), getUsers);
 router.post("/", authorize("admin"), createUserValidator, validate, createUser);
 router.put("/:id", authorize("admin"), updateUserValidator, validate, updateUser);
 router.delete("/:id", authorize("admin"), deleteUser);

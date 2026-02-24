@@ -6,6 +6,6 @@ const router = express.Router();
 
 router.use(authenticate);
 
-router.get("/stats", authorize("admin", "inventory_manager", "employee_manager", "blog_manager", "order_manager", "customer_manager", "report_manager", "staff"), getStats);
+router.get("/stats", authorize("admin", "top_manager", "inventory_manager", "employee_manager", "blog_manager", "order_manager", "customer_manager", "report_manager", "staff"), getStats);
 
 export default router;

@@ -8,7 +8,7 @@ export const createUserValidator = [
     .isLength({ min: 6 })
     .withMessage("Password must be at least 6 characters"),
   body("role")
-    .isIn(["admin", "inventory_manager", "employee_manager", "blog_manager", "order_manager", "customer_manager", "report_manager", "staff"])
+    .isIn(["admin", "top_manager", "inventory_manager", "employee_manager", "blog_manager", "order_manager", "customer_manager", "report_manager", "staff"])
     .withMessage("Invalid role"),
 ];
 
@@ -18,6 +18,6 @@ export const updateUserValidator = [
   body("email").optional().trim().isEmail().withMessage("Valid email required"),
   body("role")
     .optional()
-    .isIn(["admin", "inventory_manager", "employee_manager", "blog_manager", "order_manager", "customer_manager", "report_manager", "staff"])
+    .isIn(["admin", "top_manager", "inventory_manager", "employee_manager", "blog_manager", "order_manager", "customer_manager", "report_manager", "staff"])
     .withMessage("Invalid role"),
 ];

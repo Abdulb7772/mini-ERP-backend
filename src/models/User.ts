@@ -4,7 +4,7 @@ export interface IUser extends Document {
   name: string;
   email: string;
   password: string;
-  role: "admin" | "inventory_manager" | "employee_manager" | "blog_manager" | "order_manager" | "customer_manager" | "report_manager" | "staff";
+  role: "admin" | "top_manager" | "inventory_manager" | "employee_manager" | "blog_manager" | "order_manager" | "customer_manager" | "report_manager" | "staff";
   teams: mongoose.Types.ObjectId[];
   isActive: boolean;
   isVerified: boolean;
@@ -35,7 +35,7 @@ const userSchema = new Schema<IUser>(
     },
     role: {
       type: String,
-      enum: ["admin", "inventory_manager", "employee_manager", "blog_manager", "order_manager", "customer_manager", "report_manager", "staff"],
+      enum: ["admin", "top_manager", "inventory_manager", "employee_manager", "blog_manager", "order_manager", "customer_manager", "report_manager", "staff"],
       default: "staff",
     },
     teams: [{

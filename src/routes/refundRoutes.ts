@@ -12,7 +12,7 @@ const router = express.Router();
 
 // All routes require authentication and admin role
 router.use(authenticate);
-router.use(authorize('admin', 'order_manager'));
+router.use(authorize('admin', 'top_manager', 'order_manager'));
 
 // Get refund statistics
 router.get('/stats', getRefundStats);

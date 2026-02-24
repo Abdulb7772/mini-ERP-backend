@@ -21,7 +21,7 @@ const router = express.Router();
 router.use(authenticate);
 
 router.get("/my-orders", getMyOrders);
-router.get("/", authorize("admin", "order_manager", "staff"), getOrders);
+router.get("/", authorize("admin", "top_manager", "order_manager", "staff"), getOrders);
 router.get("/:id", getOrder); // Allow customers to view their own orders
 router.post(
   "/",
@@ -31,13 +31,13 @@ router.post(
 );
 router.put(
   "/:id",
-  authorize("admin", "order_manager", "staff"),
+  authorize("admin", "top_manager", "order_manager", "staff"),
   updateOrder
 );
 router.post("/create-payment-intent", createPaymentIntent);
 router.patch(
   "/:id/status",
-  authorize("admin", "order_manager", "staff"),
+  authorize("admin", "top_manager", "order_manager", "staff"),
   updateOrderStatusValidator,
   validate,
   updateOrderStatus

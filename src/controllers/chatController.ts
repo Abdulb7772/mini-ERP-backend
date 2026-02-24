@@ -39,7 +39,7 @@ export const createOrGetChat = async (req: AuthRequest, res: Response) => {
 
     // For external chats, validate that one is admin/staff and one is customer
     if (type === "external") {
-      const isUserStaff = ["admin", "staff", "inventory_manager", "employee_manager", "order_manager", "customer_manager"].includes(userRole || "");
+      const isUserStaff = ["admin", "top_manager", "staff", "inventory_manager", "employee_manager", "order_manager", "customer_manager", "blog_manager", "report_manager"].includes(userRole || "");
       
       if (!isUserStaff) {
         return res.status(403).json({
@@ -687,13 +687,13 @@ export const getStaffMembers = async (req: AuthRequest, res: Response) => {
     if (department) {
       switch (department) {
         case "sales":
-          filter.role = { $in: ["admin", "order_manager", "staff"] };
+          filter.role = { $in: ["admin", "top_manager", "order_manager", "staff"] };
           break;
         case "support":
-          filter.role = { $in: ["admin", "customer_manager", "staff"] };
+          filter.role = { $in: ["admin", "top_manager", "customer_manager", "staff"] };
           break;
         case "inventory":
-          filter.role = { $in: ["admin", "inventory_manager", "staff"] };
+          filter.role = { $in: ["admin", "top_manager", "inventory_manager", "staff"] };
           break;
       }
     }

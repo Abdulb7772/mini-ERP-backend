@@ -18,19 +18,19 @@ router.use(authenticate);
 
 router.post(
   "/stock-in",
-  authorize("admin", "inventory_manager"),
+  authorize("admin", "top_manager", "inventory_manager"),
   stockInValidator,
   validate,
   stockIn
 );
 router.post(
   "/stock-out",
-  authorize("admin", "inventory_manager"),
+  authorize("admin", "top_manager", "inventory_manager"),
   stockOutValidator,
   validate,
   stockOut
 );
-router.get("/logs", authorize("admin", "inventory_manager", "staff"), getLogs);
-router.get("/low-stock", authorize("admin", "inventory_manager", "staff"), getLowStock);
+router.get("/logs", authorize("admin", "top_manager", "inventory_manager", "staff"), getLogs);
+router.get("/low-stock", authorize("admin", "top_manager", "inventory_manager", "staff"), getLowStock);
 
 export default router;
