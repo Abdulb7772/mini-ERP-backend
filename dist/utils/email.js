@@ -9,20 +9,25 @@ const crypto_1 = __importDefault(require("crypto"));
 const getEmailPassword = () => process.env.EMAIL_PASSWORD || process.env.EMAIL_PASS;
 const getEmailFrom = () => process.env.EMAIL_FROM || process.env.EMAIL_USER;
 // Create transporter
-const createTransporter = () => {
+const createTransporter = (overrides) => {
     const emailPassword = getEmailPassword();
     if (!process.env.EMAIL_USER || !emailPassword) {
         throw new Error("Email credentials are missing. Set EMAIL_USER and EMAIL_PASSWORD (or EMAIL_PASS).");
     }
-    const port = parseInt(process.env.EMAIL_PORT || "587", 10);
-    const secure = process.env.EMAIL_SECURE
+  const basePort = parseInt(process.env.EMAIL_PORT || "587", 10);
+  const baseSecure = process.env.EMAIL_SECURE
         ? process.env.EMAIL_SECURE === "true"
-        : port === 465;
-    const host = process.env.EMAIL_HOST || "smtp.gmail.com";
+    : basePort === 465;
+  const transport = {
+    host: process.env.EMAIL_HOST || "smtp.gmail.com",
+    port: basePort,
+    secure: baseSecure,
+    ...overrides,
+  };
     return nodemailer_1.default.createTransport({
-        host,
-        port,
-        secure,
+    host: transport.host,
+    port: transport.port,
+    secure: transport.secure,
         connectionTimeout: parseInt(process.env.EMAIL_CONNECTION_TIMEOUT || "10000", 10),
         greetingTimeout: parseInt(process.env.EMAIL_GREETING_TIMEOUT || "10000", 10),
         socketTimeout: parseInt(process.env.EMAIL_SOCKET_TIMEOUT || "15000", 10),
@@ -116,6 +121,22 @@ const sendVerificationEmail = async (email, name, token, password) => {
         return true;
     }
     catch (error) {
+      const shouldRetryWithSsl = error?.code === "ETIMEDOUT" &&
+        (process.env.EMAIL_HOST || "smtp.gmail.com") === "smtp.gmail.com" &&
+        parseInt(process.env.EMAIL_PORT || "587", 10) === 587;
+      if (shouldRetryWithSsl) {
+        try {
+          console.warn("⚠️ SMTP 587 timeout detected, retrying with SSL on port 465...");
+          const fallbackTransporter = createTransporter({ port: 465, secure: true });
+          const fallbackInfo = await fallbackTransporter.sendMail(mailOptions);
+          console.log(`✅ Verification email sent successfully to ${email} (fallback 465)`);
+          console.log(`   Message ID: ${fallbackInfo.messageId}`);
+          return true;
+        }
+        catch (fallbackError) {
+          console.error("❌ Fallback SMTP 465 also failed:", fallbackError?.message);
+        }
+      }
         console.error("❌ Error sending verification email:");
         console.error("   Recipient:", email);
         console.error("   Error message:", error?.message);

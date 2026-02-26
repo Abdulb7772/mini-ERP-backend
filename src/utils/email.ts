@@ -7,8 +7,14 @@ const getEmailPassword = () =>
 const getEmailFrom = () =>
   process.env.EMAIL_FROM || process.env.EMAIL_USER;
 
+type EmailTransportOptions = {
+  host: string;
+  port: number;
+  secure: boolean;
+};
+
 // Create transporter
-const createTransporter = () => {
+const createTransporter = (overrides?: Partial<EmailTransportOptions>) => {
   const emailPassword = getEmailPassword();
 
   if (!process.env.EMAIL_USER || !emailPassword) {
@@ -17,17 +23,22 @@ const createTransporter = () => {
     );
   }
 
-  const port = parseInt(process.env.EMAIL_PORT || "587", 10);
-  const secure = process.env.EMAIL_SECURE
+  const basePort = parseInt(process.env.EMAIL_PORT || "587", 10);
+  const baseSecure = process.env.EMAIL_SECURE
     ? process.env.EMAIL_SECURE === "true"
-    : port === 465;
+    : basePort === 465;
 
-  const host = process.env.EMAIL_HOST || "smtp.gmail.com";
+  const transport: EmailTransportOptions = {
+    host: process.env.EMAIL_HOST || "smtp.gmail.com",
+    port: basePort,
+    secure: baseSecure,
+    ...overrides,
+  };
 
   return nodemailer.createTransport({
-    host,
-    port,
-    secure,
+    host: transport.host,
+    port: transport.port,
+    secure: transport.secure,
     connectionTimeout: parseInt(process.env.EMAIL_CONNECTION_TIMEOUT || "10000", 10),
     greetingTimeout: parseInt(process.env.EMAIL_GREETING_TIMEOUT || "10000", 10),
     socketTimeout: parseInt(process.env.EMAIL_SOCKET_TIMEOUT || "15000", 10),
@@ -52,7 +63,7 @@ export const sendVerificationEmail = async (
   password?: string
 ) => {
   const transporter = createTransporter();
-  
+
   const verificationUrl = `${process.env.FRONTEND_URL || "http://localhost:3000"}/verify-email?token=${token}`;
 
   const mailOptions = {
@@ -129,6 +140,24 @@ export const sendVerificationEmail = async (
     console.log(`   Message ID: ${info.messageId}`);
     return true;
   } catch (error: any) {
+    const shouldRetryWithSsl =
+      error?.code === "ETIMEDOUT" &&
+      (process.env.EMAIL_HOST || "smtp.gmail.com") === "smtp.gmail.com" &&
+      parseInt(process.env.EMAIL_PORT || "587", 10) === 587;
+
+    if (shouldRetryWithSsl) {
+      try {
+        console.warn("⚠️ SMTP 587 timeout detected, retrying with SSL on port 465...");
+        const fallbackTransporter = createTransporter({ port: 465, secure: true });
+        const fallbackInfo = await fallbackTransporter.sendMail(mailOptions);
+        console.log(`✅ Verification email sent successfully to ${email} (fallback 465)`);
+        console.log(`   Message ID: ${fallbackInfo.messageId}`);
+        return true;
+      } catch (fallbackError: any) {
+        console.error("❌ Fallback SMTP 465 also failed:", fallbackError?.message);
+      }
+    }
+
     console.error("❌ Error sending verification email:");
     console.error("   Recipient:", email);
     console.error("   Error message:", error?.message);
