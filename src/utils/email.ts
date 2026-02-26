@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import https from "https";
 import crypto from "crypto";
 
 const getEmailPassword = () =>
@@ -49,6 +50,48 @@ const createTransporter = (overrides?: Partial<EmailTransportOptions>) => {
     },
   });
 };
+
+// Minimal SendGrid HTTP sender (no extra deps)
+async function sendViaSendGrid(opts: { to: string; subject: string; html: string; from?: string; name?: string; }) {
+  const apiKey = process.env.SENDGRID_API_KEY as string | undefined;
+  if (!apiKey) throw new Error("SENDGRID_API_KEY not configured");
+
+  const payload = JSON.stringify({
+    personalizations: [{ to: [{ email: opts.to }], subject: opts.subject }],
+    from: { email: opts.from || getEmailFrom(), name: opts.name || "Mini ERP" },
+    content: [{ type: "text/html", value: opts.html }],
+  });
+
+  const requestOptions: https.RequestOptions = {
+    hostname: 'api.sendgrid.com',
+    path: '/v3/mail/send',
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+      'Content-Length': Buffer.byteLength(payload),
+    },
+    timeout: parseInt(process.env.EMAIL_CONNECTION_TIMEOUT || '10000', 10),
+  };
+
+  await new Promise<void>((resolve, reject) => {
+    const req = https.request(requestOptions, (res) => {
+      const chunks: Buffer[] = [];
+      res.on('data', (c) => chunks.push(Buffer.from(c)));
+      res.on('end', () => {
+        if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) return resolve();
+        const body = Buffer.concat(chunks).toString('utf8');
+        reject(new Error(`SendGrid failed: ${res.statusCode} ${body}`));
+      });
+    });
+    req.on('error', reject);
+    req.on('timeout', () => {
+      req.destroy(new Error('SendGrid request timed out'));
+    });
+    req.write(payload);
+    req.end();
+  });
+}
 
 // Generate verification token
 export const generateVerificationToken = (): string => {
@@ -155,6 +198,18 @@ export const sendVerificationEmail = async (
         return true;
       } catch (fallbackError: any) {
         console.error("❌ Fallback SMTP 465 also failed:", fallbackError?.message);
+      }
+    }
+
+    // If SMTP is blocked (common on some hosts), try SendGrid HTTP API if configured
+    if (process.env.SENDGRID_API_KEY) {
+      try {
+        console.warn("⚠️ Attempting SendGrid HTTP fallback...");
+        await sendViaSendGrid({ to: email, subject: mailOptions.subject as string, html: mailOptions.html as string, from: getEmailFrom(), name });
+        console.log(`✅ Verification email sent via SendGrid to ${email}`);
+        return true;
+      } catch (sgError: any) {
+        console.error("❌ SendGrid fallback failed:", sgError?.message || sgError);
       }
     }
 

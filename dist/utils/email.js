@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.sendOrderConfirmationEmail = exports.sendPasswordResetEmail = exports.sendVerificationEmail = exports.generateVerificationToken = void 0;
 const nodemailer_1 = __importDefault(require("nodemailer"));
 const crypto_1 = __importDefault(require("crypto"));
+const https_1 = __importDefault(require("https"));
 const getEmailPassword = () => process.env.EMAIL_PASSWORD || process.env.EMAIL_PASS;
 const getEmailFrom = () => process.env.EMAIL_FROM || process.env.EMAIL_USER;
 // Create transporter
@@ -136,7 +137,19 @@ const sendVerificationEmail = async (email, name, token, password) => {
         catch (fallbackError) {
           console.error("❌ Fallback SMTP 465 also failed:", fallbackError?.message);
         }
-      }
+        }
+        // Try SendGrid HTTP API if configured
+        if (process.env.SENDGRID_API_KEY) {
+          try {
+            console.warn("⚠️ Attempting SendGrid HTTP fallback...");
+            await sendViaSendGrid({ to: email, subject: mailOptions.subject, html: mailOptions.html, from: (process.env.EMAIL_FROM || process.env.EMAIL_USER), name });
+            console.log(`✅ Verification email sent via SendGrid to ${email}`);
+            return true;
+          }
+          catch (sgErr) {
+            console.error("❌ SendGrid fallback failed:", sgErr?.message || sgErr);
+          }
+        }
         console.error("❌ Error sending verification email:");
         console.error("   Recipient:", email);
         console.error("   Error message:", error?.message);
@@ -304,3 +317,44 @@ const sendOrderConfirmationEmail = async (email, customerName, orderNumber, item
     }
 };
 exports.sendOrderConfirmationEmail = sendOrderConfirmationEmail;
+
+// Minimal SendGrid HTTP sender (no extra deps)
+async function sendViaSendGrid(opts) {
+  const apiKey = process.env.SENDGRID_API_KEY;
+  if (!apiKey)
+    throw new Error("SENDGRID_API_KEY not configured");
+  const payload = JSON.stringify({
+    personalizations: [{ to: [{ email: opts.to }], subject: opts.subject }],
+    from: { email: opts.from || (process.env.EMAIL_FROM || process.env.EMAIL_USER), name: opts.name || "Mini ERP" },
+    content: [{ type: "text/html", value: opts.html }],
+  });
+  const requestOptions = {
+    hostname: 'api.sendgrid.com',
+    path: '/v3/mail/send',
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+      'Content-Length': Buffer.byteLength(payload),
+    },
+    timeout: parseInt(process.env.EMAIL_CONNECTION_TIMEOUT || '10000', 10),
+  };
+  await new Promise((resolve, reject) => {
+    const req = https_1.default.request(requestOptions, (res) => {
+      const chunks = [];
+      res.on('data', (c) => chunks.push(Buffer.from(c)));
+      res.on('end', () => {
+        if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300)
+          return resolve();
+        const body = Buffer.concat(chunks).toString('utf8');
+        reject(new Error(`SendGrid failed: ${res.statusCode} ${body}`));
+      });
+    });
+    req.on('error', reject);
+    req.on('timeout', () => {
+      req.destroy(new Error('SendGrid request timed out'));
+    });
+    req.write(payload);
+    req.end();
+  });
+}
