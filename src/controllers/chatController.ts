@@ -258,12 +258,28 @@ export const getUserChats = async (req: AuthRequest, res: Response) => {
       }
     }
 
-    // Calculate unread count for each chat
+    // Calculate unread count for each chat and format lastMessage
     const chatsWithUnread = chats.map((chat: any) => {
-      const unreadCount = chat.unreadCount?.get?.(userId) || 0;
+      let unreadCount = 0;
+      const unreadData = chat.unreadCount;
+
+      if (unreadData instanceof Map) {
+        unreadCount = unreadData.get(userId) || 0;
+      } else if (Array.isArray(unreadData)) {
+        const matched = unreadData.find(([key]: [string, number]) => key === userId);
+        unreadCount = matched?.[1] || 0;
+      } else if (unreadData && typeof unreadData === "object") {
+        unreadCount = Number(unreadData[userId] || 0);
+      }
+
       return {
         ...chat,
         myUnreadCount: unreadCount,
+        // Format lastMessage as object for client compatibility
+        lastMessage: chat.lastMessage ? {
+          message: chat.lastMessage,
+          createdAt: chat.lastMessageAt || chat.updatedAt
+        } : null,
       };
     });
 
@@ -730,13 +746,6 @@ export const createSupportChat = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    if (!message) {
-      return res.status(400).json({
-        success: false,
-        message: "Initial message is required",
-      });
-    }
-
     // Find an admin to assign
     const admin = await User.findOne({ role: "admin", isActive: true });
     if (!admin) {
@@ -764,6 +773,8 @@ export const createSupportChat = async (req: AuthRequest, res: Response) => {
         participants: [customerId, admin._id],
         participantRoles: ["customer", admin.role],
         isGroup: false,
+        groupName: "Support",
+        department: "support",
         contextType: orderId ? "order" : "general",
         contextId: orderId || null,
         createdBy: customerId,
@@ -771,29 +782,49 @@ export const createSupportChat = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    // Get customer info
-    const customer = await Customer.findById(customerId).select("name");
+    // Send initial message if provided
+    if (message) {
+      // Get customer info
+      const customer = await Customer.findById(customerId).select("name");
 
-    // Send initial message
-    await Message.create({
-      chatId: chat._id,
-      senderId: customerId,
-      senderRole: "customer",
-      senderName: customer?.name || "Customer",
-      text: message,
-      status: "sent",
-      readBy: [customerId],
-    });
+      await Message.create({
+        chatId: chat._id,
+        senderId: customerId,
+        senderRole: "customer",
+        senderName: customer?.name || "Customer",
+        text: message,
+        status: "sent",
+        readBy: [customerId],
+      });
 
-    // Update chat
-    await Chat.findByIdAndUpdate(chat._id, {
-      lastMessage: message,
-      lastMessageAt: new Date(),
-    });
+      // Update chat
+      await Chat.findByIdAndUpdate(chat._id, {
+        lastMessage: message,
+        lastMessageAt: new Date(),
+      });
+    }
 
-    const populatedChat = await Chat.findById(chat._id)
-      .populate("participants", "name email")
-      .lean();
+    const populatedChat = await Chat.findById(chat._id).lean();
+
+    // Manually populate participants based on roles
+    const populatedParticipants = [];
+    for (let i = 0; i < (populatedChat as any).participants.length; i++) {
+      const participantId = (populatedChat as any).participants[i];
+      const role = (populatedChat as any).participantRoles[i];
+      
+      if (role === "customer") {
+        const customer = await Customer.findById(participantId).select("name email").lean();
+        if (customer) {
+          populatedParticipants.push({ ...customer, role: "customer" });
+        }
+      } else {
+        const user = await User.findById(participantId).select("name email role").lean();
+        if (user) {
+          populatedParticipants.push(user);
+        }
+      }
+    }
+    (populatedChat as any).participants = populatedParticipants;
 
     // Manually populate contextId for non-general contexts
     if ((populatedChat as any)?.contextType && (populatedChat as any).contextType !== "general" && (populatedChat as any).contextId) {
@@ -810,9 +841,18 @@ export const createSupportChat = async (req: AuthRequest, res: Response) => {
       }
     }
 
+    // Format lastMessage as object for client compatibility
+    const responseData = {
+      ...(populatedChat as any),
+      lastMessage: (populatedChat as any).lastMessage ? {
+        message: (populatedChat as any).lastMessage,
+        createdAt: (populatedChat as any).lastMessageAt || (populatedChat as any).updatedAt
+      } : null,
+    };
+
     res.status(201).json({
       success: true,
-      data: populatedChat,
+      data: responseData,
     });
   } catch (error: any) {
     console.error("Error creating support chat:", error);
@@ -895,3 +935,60 @@ export const deleteMessage = async (req: AuthRequest, res: Response) => {
   }
 };
 
+/**
+ * Delete a chat and all its messages
+ */
+export const deleteChat = async (req: AuthRequest, res: Response) => {
+  try {
+    const { chatId } = req.params;
+    const userId = req.user?.userId;
+    const userRole = req.user?.role;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "User not authenticated",
+      });
+    }
+
+    // Find the chat
+    const chat = await Chat.findById(chatId);
+    if (!chat) {
+      return res.status(404).json({
+        success: false,
+        message: "Chat not found",
+      });
+    }
+
+    // Check if user is a participant or admin
+    const isParticipant = chat.participants.some(
+      (p) => p.toString() === userId
+    );
+    const isAdmin = userRole === "admin";
+
+    if (!isParticipant && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: "You are not authorized to delete this chat",
+      });
+    }
+
+    // Delete all messages in the chat
+    await Message.deleteMany({ chatId: chat._id });
+
+    // Delete the chat
+    await Chat.findByIdAndDelete(chatId);
+
+    res.status(200).json({
+      success: true,
+      message: "Chat deleted successfully",
+    });
+  } catch (error: any) {
+    console.error("Error deleting chat:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error deleting chat",
+      error: error.message,
+    });
+  }
+};

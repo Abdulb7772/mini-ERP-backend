@@ -121,7 +121,8 @@ export const initializeSocketIO = (io: SocketIOServer) => {
         try {
           const { chatId, text, attachments = [], contextType, contextId } = data;
 
-          if (!text || !chatId) {
+          // Allow empty text if there's an attachment
+          if (!chatId || (!text && !contextType)) {
             socket.emit("error", { message: "Invalid message data" });
             return;
           }
@@ -148,7 +149,7 @@ export const initializeSocketIO = (io: SocketIOServer) => {
             senderId: userId,
             senderRole: userRole,
             senderName: userName,
-            text,
+            text: text || "", // Allow empty text for attachments
             attachments,
             status: "sent",
             readBy: [userId],
@@ -191,11 +192,25 @@ export const initializeSocketIO = (io: SocketIOServer) => {
             }
           }
 
+          // Determine lastMessage text
+          let lastMessageText = text;
+          if (!text && contextType) {
+            if (contextType === "order") {
+              lastMessageText = "📦 Sent an order";
+            } else if (contextType === "product") {
+              lastMessageText = "🏷️ Sent a product";
+            } else if (contextType === "customer") {
+              lastMessageText = "👤 Sent a customer reference";
+            } else {
+              lastMessageText = "📎 Sent an attachment";
+            }
+          }
+
           // Update chat
           const updatedChat = await Chat.findByIdAndUpdate(
             chatId,
             {
-              lastMessage: text,
+              lastMessage: lastMessageText,
               lastMessageAt: new Date(),
             },
             { new: true }
@@ -225,7 +240,7 @@ export const initializeSocketIO = (io: SocketIOServer) => {
           chat.participants.forEach((participantId) => {
             io.to(`user:${participantId}`).emit("chat:updated", {
               chatId,
-              lastMessage: text,
+              lastMessage: lastMessageText,
               lastMessageAt: new Date(),
             });
           });

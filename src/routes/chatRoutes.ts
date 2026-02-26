@@ -11,6 +11,7 @@ import {
   getStaffMembers,
   createSupportChat,
   deleteMessage,
+  deleteChat,
 } from "../controllers/chatController";
 import { authenticate, authorize } from "../middlewares/auth";
 
@@ -29,6 +30,7 @@ router.get("/:chatId/messages", getChatMessages);
 router.post("/:chatId/messages", sendMessage);
 router.patch("/:chatId/read", markMessagesAsRead);
 router.get("/:chatId/context", getChatContext);
+router.delete("/:chatId", deleteChat);
 
 // Message operations
 router.delete("/messages/:messageId", deleteMessage);
