@@ -6,22 +6,30 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.sendOrderConfirmationEmail = exports.sendPasswordResetEmail = exports.sendVerificationEmail = exports.generateVerificationToken = void 0;
 const nodemailer_1 = __importDefault(require("nodemailer"));
 const crypto_1 = __importDefault(require("crypto"));
+const getEmailPassword = () => process.env.EMAIL_PASSWORD || process.env.EMAIL_PASS;
+const getEmailFrom = () => process.env.EMAIL_FROM || process.env.EMAIL_USER;
 // Create transporter
 const createTransporter = () => {
+    const emailPassword = getEmailPassword();
+    if (!process.env.EMAIL_USER || !emailPassword) {
+        throw new Error("Email credentials are missing. Set EMAIL_USER and EMAIL_PASSWORD (or EMAIL_PASS).");
+    }
     const port = parseInt(process.env.EMAIL_PORT || "587", 10);
     const secure = process.env.EMAIL_SECURE
         ? process.env.EMAIL_SECURE === "true"
         : port === 465;
+    const host = process.env.EMAIL_HOST || "smtp.gmail.com";
     return nodemailer_1.default.createTransport({
-        host: process.env.EMAIL_HOST || "smtp.gmail.com",
+        host,
         port,
         secure,
         connectionTimeout: parseInt(process.env.EMAIL_CONNECTION_TIMEOUT || "10000", 10),
         greetingTimeout: parseInt(process.env.EMAIL_GREETING_TIMEOUT || "10000", 10),
         socketTimeout: parseInt(process.env.EMAIL_SOCKET_TIMEOUT || "15000", 10),
+        dnsTimeout: parseInt(process.env.EMAIL_DNS_TIMEOUT || "10000", 10),
         auth: {
             user: process.env.EMAIL_USER,
-            pass: process.env.EMAIL_PASSWORD,
+            pass: emailPassword,
         },
     });
 };
@@ -35,7 +43,7 @@ const sendVerificationEmail = async (email, name, token, password) => {
     const transporter = createTransporter();
     const verificationUrl = `${process.env.FRONTEND_URL || "http://localhost:3000"}/verify-email?token=${token}`;
     const mailOptions = {
-        from: `"Mini ERP" <${process.env.EMAIL_USER}>`,
+        from: `"Mini ERP" <${getEmailFrom()}>`,
         to: email,
         subject: "Verify Your Email & Login Credentials - Mini ERP",
         html: `
@@ -112,6 +120,9 @@ const sendVerificationEmail = async (email, name, token, password) => {
         console.error("   Recipient:", email);
         console.error("   Error message:", error?.message);
         console.error("   Error code:", error?.code);
+        console.error("   SMTP host:", process.env.EMAIL_HOST || "smtp.gmail.com");
+        console.error("   SMTP port:", process.env.EMAIL_PORT || "587");
+        console.error("   SMTP secure:", process.env.EMAIL_SECURE || "auto");
         console.error("   Full error:", error);
         // Re-throw the error so it can be caught and handled by the caller
         throw error;
@@ -122,7 +133,7 @@ exports.sendVerificationEmail = sendVerificationEmail;
 const sendPasswordResetEmail = async (email, name, password) => {
     const transporter = createTransporter();
     const mailOptions = {
-        from: `"Mini ERP" <${process.env.EMAIL_USER}>`,
+        from: `"Mini ERP" <${getEmailFrom()}>`,
         to: email,
         subject: "Your Account Password - Mini ERP",
         html: `
@@ -191,7 +202,7 @@ const sendOrderConfirmationEmail = async (email, customerName, orderNumber, item
     </tr>
   `).join('');
     const mailOptions = {
-        from: `"Mini ERP" <${process.env.EMAIL_USER}>`,
+        from: `"Mini ERP" <${getEmailFrom()}>`,
         to: email,
         subject: `Order Confirmation - ${orderNumber}`,
         html: `

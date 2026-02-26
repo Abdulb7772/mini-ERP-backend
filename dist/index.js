@@ -154,7 +154,10 @@ console.log(`CLOUDINARY_CLOUD_NAME: ${process.env.CLOUDINARY_CLOUD_NAME ? "✅ S
 console.log(`CLOUDINARY_API_KEY: ${process.env.CLOUDINARY_API_KEY ? "✅ Set" : "❌ Missing"}`);
 console.log(`CLOUDINARY_API_SECRET: ${process.env.CLOUDINARY_API_SECRET ? "✅ Set" : "❌ Missing"}`);
 console.log(`EMAIL_USER: ${process.env.EMAIL_USER ? "✅ Set" : "❌ Missing"}`);
-console.log(`EMAIL_PASSWORD: ${process.env.EMAIL_PASSWORD ? "✅ Set" : "❌ Missing"}`);
+console.log(`EMAIL_PASSWORD/EMAIL_PASS: ${process.env.EMAIL_PASSWORD || process.env.EMAIL_PASS ? "✅ Set" : "❌ Missing"}`);
+console.log(`EMAIL_HOST: ${process.env.EMAIL_HOST || "smtp.gmail.com (default)"}`);
+console.log(`EMAIL_PORT: ${process.env.EMAIL_PORT || "587 (default)"}`);
+console.log(`EMAIL_SECURE: ${process.env.EMAIL_SECURE || "auto"}`);
 console.log(`FRONTEND_URL: ${process.env.FRONTEND_URL || "Not set (using default)"}`);
 console.log("🔧".repeat(40) + "\n");
 // Connect to MongoDB and start server

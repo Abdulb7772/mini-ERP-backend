@@ -88,7 +88,8 @@ export const register = async (
       console.log("✅ User created with ID:", createdUser._id);
     }
 
-    const canSendEmail = Boolean(process.env.EMAIL_USER && process.env.EMAIL_PASSWORD);
+    const emailPassword = process.env.EMAIL_PASSWORD || process.env.EMAIL_PASS;
+    const canSendEmail = Boolean(process.env.EMAIL_USER && emailPassword);
 
     // Send verification email in background so registration response is never blocked by SMTP delays.
     console.log("\n📧 Queueing verification email...");
@@ -105,7 +106,7 @@ export const register = async (
         }
       });
     } else {
-      console.log("⚠️ EMAIL_USER/EMAIL_PASSWORD not configured. Skipping verification email send.");
+      console.log("⚠️ EMAIL_USER/EMAIL_PASSWORD (or EMAIL_PASS) not configured. Skipping verification email send.");
     }
 
     console.log("\n✅ REGISTRATION SUCCESSFUL for:", email);

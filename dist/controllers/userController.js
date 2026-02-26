@@ -240,6 +240,9 @@ const resendVerificationEmail = async (req, res, next) => {
         }
         catch (emailError) {
             console.error("Failed to send email:", emailError);
+            if (emailError?.code === "ETIMEDOUT") {
+                throw new errorHandler_1.AppError("Email service connection timed out. Verify EMAIL_HOST/EMAIL_PORT/EMAIL_SECURE on Render and try again.", 503);
+            }
             throw new errorHandler_1.AppError("Failed to send verification email", 500);
         }
         res.status(200).json({

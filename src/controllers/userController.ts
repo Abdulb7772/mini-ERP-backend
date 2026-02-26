@@ -292,8 +292,14 @@ export const resendVerificationEmail = async (
     // Send verification email (without password since user already has credentials)
     try {
       await sendVerificationEmail(account.email, account.name, verificationToken);
-    } catch (emailError) {
+    } catch (emailError: any) {
       console.error("Failed to send email:", emailError);
+      if (emailError?.code === "ETIMEDOUT") {
+        throw new AppError(
+          "Email service connection timed out. Verify EMAIL_HOST/EMAIL_PORT/EMAIL_SECURE on Render and try again.",
+          503
+        );
+      }
       throw new AppError("Failed to send verification email", 500);
     }
 
