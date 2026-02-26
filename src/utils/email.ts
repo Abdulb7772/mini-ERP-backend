@@ -3,10 +3,18 @@ import crypto from "crypto";
 
 // Create transporter
 const createTransporter = () => {
+  const port = parseInt(process.env.EMAIL_PORT || "587", 10);
+  const secure = process.env.EMAIL_SECURE
+    ? process.env.EMAIL_SECURE === "true"
+    : port === 465;
+
   return nodemailer.createTransport({
     host: process.env.EMAIL_HOST || "smtp.gmail.com",
-    port: parseInt(process.env.EMAIL_PORT || "587"),
-    secure: false,
+    port,
+    secure,
+    connectionTimeout: parseInt(process.env.EMAIL_CONNECTION_TIMEOUT || "10000", 10),
+    greetingTimeout: parseInt(process.env.EMAIL_GREETING_TIMEOUT || "10000", 10),
+    socketTimeout: parseInt(process.env.EMAIL_SOCKET_TIMEOUT || "15000", 10),
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASSWORD,

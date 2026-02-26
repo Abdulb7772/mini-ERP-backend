@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteMessage = exports.createSupportChat = exports.getStaffMembers = exports.getChatContext = exports.markMessagesAsRead = exports.sendMessage = exports.getChatMessages = exports.getChatById = exports.getUserChats = exports.createGroupChat = exports.createOrGetChat = void 0;
+exports.deleteChat = exports.deleteMessage = exports.createSupportChat = exports.getStaffMembers = exports.getChatContext = exports.markMessagesAsRead = exports.sendMessage = exports.getChatMessages = exports.getChatById = exports.getUserChats = exports.createGroupChat = exports.createOrGetChat = void 0;
 const Chat_1 = __importDefault(require("../models/Chat"));
 const Message_1 = __importDefault(require("../models/Message"));
 const User_1 = __importDefault(require("../models/User"));
@@ -37,7 +37,7 @@ const createOrGetChat = async (req, res) => {
         }
         // For external chats, validate that one is admin/staff and one is customer
         if (type === "external") {
-            const isUserStaff = ["admin", "staff", "inventory_manager", "employee_manager", "order_manager", "customer_manager"].includes(userRole || "");
+            const isUserStaff = ["admin", "top_manager", "staff", "inventory_manager", "employee_manager", "order_manager", "customer_manager", "blog_manager", "report_manager"].includes(userRole || "");
             if (!isUserStaff) {
                 return res.status(403).json({
                     success: false,
@@ -234,12 +234,28 @@ const getUserChats = async (req, res) => {
                 }
             }
         }
-        // Calculate unread count for each chat
+        // Calculate unread count for each chat and format lastMessage
         const chatsWithUnread = chats.map((chat) => {
-            const unreadCount = chat.unreadCount?.get?.(userId) || 0;
+            let unreadCount = 0;
+            const unreadData = chat.unreadCount;
+            if (unreadData instanceof Map) {
+                unreadCount = unreadData.get(userId) || 0;
+            }
+            else if (Array.isArray(unreadData)) {
+                const matched = unreadData.find(([key]) => key === userId);
+                unreadCount = matched?.[1] || 0;
+            }
+            else if (unreadData && typeof unreadData === "object") {
+                unreadCount = Number(unreadData[userId] || 0);
+            }
             return {
                 ...chat,
                 myUnreadCount: unreadCount,
+                // Format lastMessage as object for client compatibility
+                lastMessage: chat.lastMessage ? {
+                    message: chat.lastMessage,
+                    createdAt: chat.lastMessageAt || chat.updatedAt
+                } : null,
             };
         });
         res.status(200).json({
@@ -619,13 +635,13 @@ const getStaffMembers = async (req, res) => {
         if (department) {
             switch (department) {
                 case "sales":
-                    filter.role = { $in: ["admin", "order_manager", "staff"] };
+                    filter.role = { $in: ["admin", "top_manager", "order_manager", "staff"] };
                     break;
                 case "support":
-                    filter.role = { $in: ["admin", "customer_manager", "staff"] };
+                    filter.role = { $in: ["admin", "top_manager", "customer_manager", "staff"] };
                     break;
                 case "inventory":
-                    filter.role = { $in: ["admin", "inventory_manager", "staff"] };
+                    filter.role = { $in: ["admin", "top_manager", "inventory_manager", "staff"] };
                     break;
             }
         }
@@ -659,12 +675,6 @@ const createSupportChat = async (req, res) => {
                 message: "Unauthorized",
             });
         }
-        if (!message) {
-            return res.status(400).json({
-                success: false,
-                message: "Initial message is required",
-            });
-        }
         // Find an admin to assign
         const admin = await User_1.default.findOne({ role: "admin", isActive: true });
         if (!admin) {
@@ -690,32 +700,53 @@ const createSupportChat = async (req, res) => {
                 participants: [customerId, admin._id],
                 participantRoles: ["customer", admin.role],
                 isGroup: false,
+                groupName: "Support",
+                department: "support",
                 contextType: orderId ? "order" : "general",
                 contextId: orderId || null,
                 createdBy: customerId,
                 unreadCount: new Map(),
             });
         }
-        // Get customer info
-        const customer = await Customer_1.default.findById(customerId).select("name");
-        // Send initial message
-        await Message_1.default.create({
-            chatId: chat._id,
-            senderId: customerId,
-            senderRole: "customer",
-            senderName: customer?.name || "Customer",
-            text: message,
-            status: "sent",
-            readBy: [customerId],
-        });
-        // Update chat
-        await Chat_1.default.findByIdAndUpdate(chat._id, {
-            lastMessage: message,
-            lastMessageAt: new Date(),
-        });
-        const populatedChat = await Chat_1.default.findById(chat._id)
-            .populate("participants", "name email")
-            .lean();
+        // Send initial message if provided
+        if (message) {
+            // Get customer info
+            const customer = await Customer_1.default.findById(customerId).select("name");
+            await Message_1.default.create({
+                chatId: chat._id,
+                senderId: customerId,
+                senderRole: "customer",
+                senderName: customer?.name || "Customer",
+                text: message,
+                status: "sent",
+                readBy: [customerId],
+            });
+            // Update chat
+            await Chat_1.default.findByIdAndUpdate(chat._id, {
+                lastMessage: message,
+                lastMessageAt: new Date(),
+            });
+        }
+        const populatedChat = await Chat_1.default.findById(chat._id).lean();
+        // Manually populate participants based on roles
+        const populatedParticipants = [];
+        for (let i = 0; i < populatedChat.participants.length; i++) {
+            const participantId = populatedChat.participants[i];
+            const role = populatedChat.participantRoles[i];
+            if (role === "customer") {
+                const customer = await Customer_1.default.findById(participantId).select("name email").lean();
+                if (customer) {
+                    populatedParticipants.push({ ...customer, role: "customer" });
+                }
+            }
+            else {
+                const user = await User_1.default.findById(participantId).select("name email role").lean();
+                if (user) {
+                    populatedParticipants.push(user);
+                }
+            }
+        }
+        populatedChat.participants = populatedParticipants;
         // Manually populate contextId for non-general contexts
         if (populatedChat?.contextType && populatedChat.contextType !== "general" && populatedChat.contextId) {
             try {
@@ -733,9 +764,17 @@ const createSupportChat = async (req, res) => {
                 console.error("Error populating contextId:", err);
             }
         }
+        // Format lastMessage as object for client compatibility
+        const responseData = {
+            ...populatedChat,
+            lastMessage: populatedChat.lastMessage ? {
+                message: populatedChat.lastMessage,
+                createdAt: populatedChat.lastMessageAt || populatedChat.updatedAt
+            } : null,
+        };
         res.status(201).json({
             success: true,
-            data: populatedChat,
+            data: responseData,
         });
     }
     catch (error) {
@@ -813,3 +852,53 @@ const deleteMessage = async (req, res) => {
     }
 };
 exports.deleteMessage = deleteMessage;
+/**
+ * Delete a chat and all its messages
+ */
+const deleteChat = async (req, res) => {
+    try {
+        const { chatId } = req.params;
+        const userId = req.user?.userId;
+        const userRole = req.user?.role;
+        if (!userId) {
+            return res.status(401).json({
+                success: false,
+                message: "User not authenticated",
+            });
+        }
+        // Find the chat
+        const chat = await Chat_1.default.findById(chatId);
+        if (!chat) {
+            return res.status(404).json({
+                success: false,
+                message: "Chat not found",
+            });
+        }
+        // Check if user is a participant or admin
+        const isParticipant = chat.participants.some((p) => p.toString() === userId);
+        const isAdmin = userRole === "admin";
+        if (!isParticipant && !isAdmin) {
+            return res.status(403).json({
+                success: false,
+                message: "You are not authorized to delete this chat",
+            });
+        }
+        // Delete all messages in the chat
+        await Message_1.default.deleteMany({ chatId: chat._id });
+        // Delete the chat
+        await Chat_1.default.findByIdAndDelete(chatId);
+        res.status(200).json({
+            success: true,
+            message: "Chat deleted successfully",
+        });
+    }
+    catch (error) {
+        console.error("Error deleting chat:", error);
+        res.status(500).json({
+            success: false,
+            message: "Error deleting chat",
+            error: error.message,
+        });
+    }
+};
+exports.deleteChat = deleteChat;

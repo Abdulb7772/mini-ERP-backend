@@ -9,7 +9,7 @@ const auth_1 = require("../middlewares/auth");
 const router = express_1.default.Router();
 // All routes require authentication and admin role
 router.use(auth_1.authenticate);
-router.use((0, auth_1.authorize)('admin', 'order_manager'));
+router.use((0, auth_1.authorize)('admin', 'top_manager', 'order_manager'));
 // Get refund statistics
 router.get('/stats', refundController_1.getRefundStats);
 // Get all refund transactions

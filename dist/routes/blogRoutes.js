@@ -11,9 +11,9 @@ const router = express_1.default.Router();
 router.get("/published", blogController_1.getPublishedBlogs);
 router.get("/:id", blogController_1.getBlogById);
 // Admin routes
-router.get("/", auth_1.authenticate, (0, auth_1.authorize)("admin", "blog_manager"), blogController_1.getAllBlogs);
-router.post("/", auth_1.authenticate, (0, auth_1.authorize)("admin", "blog_manager"), blogController_1.createBlog);
-router.put("/:id", auth_1.authenticate, (0, auth_1.authorize)("admin", "blog_manager"), blogController_1.updateBlog);
-router.patch("/:id/toggle-status", auth_1.authenticate, (0, auth_1.authorize)("admin", "blog_manager"), blogController_1.toggleBlogStatus);
-router.delete("/:id", auth_1.authenticate, (0, auth_1.authorize)("admin", "blog_manager"), blogController_1.deleteBlog);
+router.get("/", auth_1.authenticate, (0, auth_1.authorize)("admin", "top_manager", "blog_manager"), blogController_1.getAllBlogs);
+router.post("/", auth_1.authenticate, (0, auth_1.authorize)("admin", "top_manager", "blog_manager"), blogController_1.createBlog);
+router.put("/:id", auth_1.authenticate, (0, auth_1.authorize)("admin", "top_manager", "blog_manager"), blogController_1.updateBlog);
+router.patch("/:id/toggle-status", auth_1.authenticate, (0, auth_1.authorize)("admin", "top_manager", "blog_manager"), blogController_1.toggleBlogStatus);
+router.delete("/:id", auth_1.authenticate, (0, auth_1.authorize)("admin", "top_manager", "blog_manager"), blogController_1.deleteBlog);
 exports.default = router;

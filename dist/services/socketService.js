@@ -92,7 +92,8 @@ const initializeSocketIO = (io) => {
         socket.on("message:send", async (data) => {
             try {
                 const { chatId, text, attachments = [], contextType, contextId } = data;
-                if (!text || !chatId) {
+                // Allow empty text if there's an attachment
+                if (!chatId || (!text && !contextType)) {
                     socket.emit("error", { message: "Invalid message data" });
                     return;
                 }
@@ -113,7 +114,7 @@ const initializeSocketIO = (io) => {
                     senderId: userId,
                     senderRole: userRole,
                     senderName: userName,
-                    text,
+                    text: text || "", // Allow empty text for attachments
                     attachments,
                     status: "sent",
                     readBy: [userId],
@@ -157,9 +158,25 @@ const initializeSocketIO = (io) => {
                         console.error("Error populating contextId:", err);
                     }
                 }
+                // Determine lastMessage text
+                let lastMessageText = text;
+                if (!text && contextType) {
+                    if (contextType === "order") {
+                        lastMessageText = "📦 Sent an order";
+                    }
+                    else if (contextType === "product") {
+                        lastMessageText = "🏷️ Sent a product";
+                    }
+                    else if (contextType === "customer") {
+                        lastMessageText = "👤 Sent a customer reference";
+                    }
+                    else {
+                        lastMessageText = "📎 Sent an attachment";
+                    }
+                }
                 // Update chat
                 const updatedChat = await Chat_1.default.findByIdAndUpdate(chatId, {
-                    lastMessage: text,
+                    lastMessage: lastMessageText,
                     lastMessageAt: new Date(),
                 }, { new: true });
                 // Increment unread count for other participants
@@ -183,7 +200,7 @@ const initializeSocketIO = (io) => {
                 chat.participants.forEach((participantId) => {
                     io.to(`user:${participantId}`).emit("chat:updated", {
                         chatId,
-                        lastMessage: text,
+                        lastMessage: lastMessageText,
                         lastMessageAt: new Date(),
                     });
                 });

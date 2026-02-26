@@ -19,6 +19,7 @@ router.get("/:chatId/messages", chatController_1.getChatMessages);
 router.post("/:chatId/messages", chatController_1.sendMessage);
 router.patch("/:chatId/read", chatController_1.markMessagesAsRead);
 router.get("/:chatId/context", chatController_1.getChatContext);
+router.delete("/:chatId", chatController_1.deleteChat);
 // Message operations
 router.delete("/messages/:messageId", chatController_1.deleteMessage);
 // Client support chat

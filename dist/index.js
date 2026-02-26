@@ -55,6 +55,7 @@ const allowedOrigins = [
     'https://mini-erp-frontend-uzn9.vercel.app',
     'https://mini-erp-admin-side.vercel.app',
     'https://mini-erp-admin-side-mimy.vercel.app',
+    'https://mini-erp-client-side.vercel.app',
     'https://mini-erp-client-side-lv6t.vercel.app',
     'https://mini-erp-client-side-r4z1.vercel.app',
     'https://mini-erp-client-side-ej38.vercel.app',
@@ -78,7 +79,9 @@ const corsOptions = {
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    exposedHeaders: ['Content-Range', 'X-Content-Range'],
+    optionsSuccessStatus: 204,
 };
 // Initialize Socket.IO with CORS
 const io = new socket_io_1.Server(server, {

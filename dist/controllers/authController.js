@@ -78,26 +78,31 @@ const register = async (req, res, next) => {
             });
             console.log("✅ User created with ID:", createdUser._id);
         }
-        // Send verification email
-        console.log("\n📧 Sending verification email...");
-        let emailSent = false;
-        try {
-            await (0, email_1.sendVerificationEmail)(email, name, verificationToken);
-            console.log("✅ Verification email sent successfully");
-            emailSent = true;
+        const canSendEmail = Boolean(process.env.EMAIL_USER && process.env.EMAIL_PASSWORD);
+        // Send verification email in background so registration response is never blocked by SMTP delays.
+        console.log("\n📧 Queueing verification email...");
+        if (canSendEmail) {
+            setImmediate(async () => {
+                try {
+                    await (0, email_1.sendVerificationEmail)(email, name, verificationToken);
+                    console.log("✅ Verification email sent successfully");
+                }
+                catch (emailError) {
+                    console.error("⚠️ Error sending verification email:");
+                    console.error("   Error message:", emailError?.message);
+                    console.error("   Error details:", emailError);
+                    console.log("⚠️ Registration completed, user can request email resend later");
+                }
+            });
         }
-        catch (emailError) {
-            console.error("⚠️ Error sending verification email:");
-            console.error("   Error message:", emailError?.message);
-            console.error("   Error details:", emailError);
-            console.log("⚠️ Registration will continue despite email error");
-            // Don't fail registration if email fails - user can request resend later
+        else {
+            console.log("⚠️ EMAIL_USER/EMAIL_PASSWORD not configured. Skipping verification email send.");
         }
         console.log("\n✅ REGISTRATION SUCCESSFUL for:", email);
         console.log("==================== END REGISTRATION ATTEMPT ====================\n");
         res.status(201).json({
             status: "success",
-            message: emailSent
+            message: canSendEmail
                 ? "Registration successful. Please check your email to verify your account."
                 : "Registration successful. Verification email could not be sent. Please contact support or try resending verification email.",
             data: {
@@ -108,7 +113,7 @@ const register = async (req, res, next) => {
                     role: isCustomer ? "customer" : createdUser.role,
                     isVerified: createdUser.isVerified,
                 },
-                emailSent,
+                emailSent: canSendEmail,
             },
         });
     }

@@ -12,7 +12,7 @@ const router = express_1.default.Router();
 router.post("/verify-email", userController_1.verifyEmail); // Public route
 // Protected routes
 router.use(auth_1.authenticate);
-router.get("/", (0, auth_1.authorize)("admin", "manager"), userController_1.getUsers);
+router.get("/", (0, auth_1.authorize)("admin", "top_manager", "manager"), userController_1.getUsers);
 router.post("/", (0, auth_1.authorize)("admin"), userValidator_1.createUserValidator, validate_1.validate, userController_1.createUser);
 router.put("/:id", (0, auth_1.authorize)("admin"), userValidator_1.updateUserValidator, validate_1.validate, userController_1.updateUser);
 router.delete("/:id", (0, auth_1.authorize)("admin"), userController_1.deleteUser);
