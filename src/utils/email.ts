@@ -14,6 +14,13 @@ type EmailTransportOptions = {
   secure: boolean;
 };
 
+type OutboundEmailOptions = {
+  to: string;
+  subject: string;
+  html: string;
+  name?: string;
+};
+
 // Create transporter
 const createTransporter = (overrides?: Partial<EmailTransportOptions>) => {
   const emailPassword = getEmailPassword();
@@ -81,6 +88,10 @@ async function sendViaSendGrid(opts: { to: string; subject: string; html: string
       res.on('end', () => {
         if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) return resolve();
         const body = Buffer.concat(chunks).toString('utf8');
+        if (res.statusCode === 401) {
+          reject(new Error("SendGrid authentication failed (401). Check SENDGRID_API_KEY."));
+          return;
+        }
         reject(new Error(`SendGrid failed: ${res.statusCode} ${body}`));
       });
     });
@@ -92,6 +103,74 @@ async function sendViaSendGrid(opts: { to: string; subject: string; html: string
     req.end();
   });
 }
+
+const sendViaSmtp = async (opts: OutboundEmailOptions) => {
+  const mailOptions = {
+    from: `"Mini ERP" <${getEmailFrom()}>`,
+    to: opts.to,
+    subject: opts.subject,
+    html: opts.html,
+  };
+
+  const transporter = createTransporter();
+
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    console.log(`✅ Email sent via SMTP to ${opts.to}`);
+    console.log(`   Message ID: ${info.messageId}`);
+    return;
+  } catch (error: any) {
+    const shouldRetryWithSsl =
+      error?.code === "ETIMEDOUT" &&
+      (process.env.EMAIL_HOST || "smtp.gmail.com") === "smtp.gmail.com" &&
+      parseInt(process.env.EMAIL_PORT || "587", 10) === 587;
+
+    if (shouldRetryWithSsl) {
+      try {
+        console.warn("⚠️ SMTP 587 timeout detected, retrying with SSL on port 465...");
+        const fallbackTransporter = createTransporter({ port: 465, secure: true });
+        const fallbackInfo = await fallbackTransporter.sendMail(mailOptions);
+        console.log(`✅ Email sent via SMTP fallback 465 to ${opts.to}`);
+        console.log(`   Message ID: ${fallbackInfo.messageId}`);
+        return;
+      } catch (fallbackError: any) {
+        console.error("❌ Fallback SMTP 465 also failed:", fallbackError?.message);
+      }
+    }
+
+    console.error("❌ SMTP send failed:");
+    console.error("   Recipient:", opts.to);
+    console.error("   Error message:", error?.message);
+    console.error("   Error code:", error?.code);
+    console.error("   SMTP host:", process.env.EMAIL_HOST || "smtp.gmail.com");
+    console.error("   SMTP port:", process.env.EMAIL_PORT || "587");
+    console.error("   SMTP secure:", process.env.EMAIL_SECURE || "auto");
+    throw error;
+  }
+};
+
+const sendEmail = async (opts: OutboundEmailOptions) => {
+  const hasSendGrid = Boolean(process.env.SENDGRID_API_KEY);
+
+  if (hasSendGrid) {
+    try {
+      await sendViaSendGrid({
+        to: opts.to,
+        subject: opts.subject,
+        html: opts.html,
+        from: getEmailFrom(),
+        name: opts.name,
+      });
+      console.log(`✅ Email sent via SendGrid to ${opts.to}`);
+      return;
+    } catch (sendGridError: any) {
+      console.error("❌ SendGrid send failed:", sendGridError?.message || sendGridError);
+      throw sendGridError;
+    }
+  }
+
+  await sendViaSmtp(opts);
+};
 
 // Generate verification token
 export const generateVerificationToken = (): string => {
@@ -105,15 +184,9 @@ export const sendVerificationEmail = async (
   token: string,
   password?: string
 ) => {
-  const transporter = createTransporter();
-
   const verificationUrl = `${process.env.FRONTEND_URL || "http://localhost:3000"}/verify-email?token=${token}`;
 
-  const mailOptions = {
-    from: `"Mini ERP" <${getEmailFrom()}>`,
-    to: email,
-    subject: "Verify Your Email & Login Credentials - Mini ERP",
-    html: `
+  const html = `
       <!DOCTYPE html>
       <html>
         <head>
@@ -174,45 +247,18 @@ export const sendVerificationEmail = async (
           </div>
         </body>
       </html>
-    `,
-  };
+    `;
 
   try {
-    const info = await transporter.sendMail(mailOptions);
+    await sendEmail({
+      to: email,
+      subject: "Verify Your Email & Login Credentials - Mini ERP",
+      html,
+      name,
+    });
     console.log(`✅ Verification email sent successfully to ${email}`);
-    console.log(`   Message ID: ${info.messageId}`);
     return true;
   } catch (error: any) {
-    const shouldRetryWithSsl =
-      error?.code === "ETIMEDOUT" &&
-      (process.env.EMAIL_HOST || "smtp.gmail.com") === "smtp.gmail.com" &&
-      parseInt(process.env.EMAIL_PORT || "587", 10) === 587;
-
-    if (shouldRetryWithSsl) {
-      try {
-        console.warn("⚠️ SMTP 587 timeout detected, retrying with SSL on port 465...");
-        const fallbackTransporter = createTransporter({ port: 465, secure: true });
-        const fallbackInfo = await fallbackTransporter.sendMail(mailOptions);
-        console.log(`✅ Verification email sent successfully to ${email} (fallback 465)`);
-        console.log(`   Message ID: ${fallbackInfo.messageId}`);
-        return true;
-      } catch (fallbackError: any) {
-        console.error("❌ Fallback SMTP 465 also failed:", fallbackError?.message);
-      }
-    }
-
-    // If SMTP is blocked (common on some hosts), try SendGrid HTTP API if configured
-    if (process.env.SENDGRID_API_KEY) {
-      try {
-        console.warn("⚠️ Attempting SendGrid HTTP fallback...");
-        await sendViaSendGrid({ to: email, subject: mailOptions.subject as string, html: mailOptions.html as string, from: getEmailFrom(), name });
-        console.log(`✅ Verification email sent via SendGrid to ${email}`);
-        return true;
-      } catch (sgError: any) {
-        console.error("❌ SendGrid fallback failed:", sgError?.message || sgError);
-      }
-    }
-
     console.error("❌ Error sending verification email:");
     console.error("   Recipient:", email);
     console.error("   Error message:", error?.message);
@@ -232,13 +278,7 @@ export const sendPasswordResetEmail = async (
   name: string,
   password: string
 ) => {
-  const transporter = createTransporter();
-
-  const mailOptions = {
-    from: `"Mini ERP" <${getEmailFrom()}>`,
-    to: email,
-    subject: "Your Account Password - Mini ERP",
-    html: `
+  const html = `
       <!DOCTYPE html>
       <html>
         <head>
@@ -280,11 +320,15 @@ export const sendPasswordResetEmail = async (
           </div>
         </body>
       </html>
-    `,
-  };
+    `;
 
   try {
-    await transporter.sendMail(mailOptions);
+    await sendEmail({
+      to: email,
+      subject: "Your Account Password - Mini ERP",
+      html,
+      name,
+    });
     console.log(`Password email sent to ${email}`);
   } catch (error) {
     console.error("Error sending email:", error);
@@ -306,8 +350,6 @@ export const sendOrderConfirmationEmail = async (
   totalAmount: number,
   address?: string
 ) => {
-  const transporter = createTransporter();
-
   const itemsHtml = items.map(item => `
     <tr>
       <td style="padding: 12px; border-bottom: 1px solid #eee;">${item.productName}</td>
@@ -317,11 +359,7 @@ export const sendOrderConfirmationEmail = async (
     </tr>
   `).join('');
 
-  const mailOptions = {
-    from: `"Mini ERP" <${getEmailFrom()}>`,
-    to: email,
-    subject: `Order Confirmation - ${orderNumber}`,
-    html: `
+  const html = `
       <!DOCTYPE html>
       <html>
         <head>
@@ -387,11 +425,15 @@ export const sendOrderConfirmationEmail = async (
           </div>
         </body>
       </html>
-    `,
-  };
+    `;
 
   try {
-    await transporter.sendMail(mailOptions);
+    await sendEmail({
+      to: email,
+      subject: `Order Confirmation - ${orderNumber}`,
+      html,
+      name: customerName,
+    });
     console.log(`Order confirmation email sent to ${email}`);
   } catch (error) {
     console.error("Error sending order confirmation email:", error);

@@ -158,6 +158,7 @@ console.log(`EMAIL_PASSWORD/EMAIL_PASS: ${process.env.EMAIL_PASSWORD || process.
 console.log(`EMAIL_HOST: ${process.env.EMAIL_HOST || "smtp.gmail.com (default)"}`);
 console.log(`EMAIL_PORT: ${process.env.EMAIL_PORT || "587 (default)"}`);
 console.log(`EMAIL_SECURE: ${process.env.EMAIL_SECURE || "auto"}`);
+console.log(`SENDGRID_API_KEY: ${process.env.SENDGRID_API_KEY ? "✅ Set" : "❌ Missing"}`);
 console.log(`FRONTEND_URL: ${process.env.FRONTEND_URL || "Not set (using default)"}`);
 console.log("🔧".repeat(40) + "\n");
 // Connect to MongoDB and start server
