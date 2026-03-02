@@ -28,7 +28,7 @@ export const getStats = async (
     console.log("📊 [Dashboard] Sales data:", salesData);
 
     const lowStockCount = await Product.countDocuments({
-      stock: { $lte: 10 },
+      stock: { $lte: 3 },
       hasVariations: false,
       isActive: true,
     });
@@ -44,7 +44,7 @@ export const getStats = async (
     console.log("📊 [Dashboard] Recent orders count:", recentOrders.length);
 
     const lowStockProducts = await Product.find({
-      stock: { $lte: 10 },
+      stock: { $lte: 3 },
       hasVariations: false,
       isActive: true,
     })
