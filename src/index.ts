@@ -1,4 +1,3 @@
-
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -10,6 +9,7 @@ import { connectDB } from "./config/db";
 import { errorHandler } from "./middlewares/errorHandler";
 import { requestLogger, errorLogger } from "./middlewares/logger";
 import { initializeSocketIO } from "./services/socketService";
+import { verifyEmailConnection } from "./utils/email";
 
 // Import routes
 import authRoutes from "./routes/authRoutes";
@@ -155,7 +155,7 @@ app.use(errorHandler);
 
 // Log environment configuration
 console.log("\n" + "🔧".repeat(40));
-console.log("BACKEND RESTARTED WITH DEBUG LOGGING - " + new Date().toISOString());
+console.log("BACKEND RESTARTED - " + new Date().toISOString());
 console.log("ENVIRONMENT CONFIGURATION");
 console.log("🔧".repeat(40));
 console.log(`NODE_ENV: ${process.env.NODE_ENV || "development"}`);
@@ -166,17 +166,20 @@ console.log(`STRIPE_SECRET_KEY: ${process.env.STRIPE_SECRET_KEY ? "✅ Set" : "�
 console.log(`CLOUDINARY_CLOUD_NAME: ${process.env.CLOUDINARY_CLOUD_NAME ? "✅ Set" : "❌ Missing"}`);
 console.log(`CLOUDINARY_API_KEY: ${process.env.CLOUDINARY_API_KEY ? "✅ Set" : "❌ Missing"}`);
 console.log(`CLOUDINARY_API_SECRET: ${process.env.CLOUDINARY_API_SECRET ? "✅ Set" : "❌ Missing"}`);
+console.log("\n📧 EMAIL CONFIGURATION (Gmail SMTP):");
 console.log(`EMAIL_USER: ${process.env.EMAIL_USER ? "✅ Set" : "❌ Missing"}`);
 console.log(`EMAIL_PASSWORD/EMAIL_PASS: ${process.env.EMAIL_PASSWORD || process.env.EMAIL_PASS ? "✅ Set" : "❌ Missing"}`);
-console.log(`EMAIL_HOST: ${process.env.EMAIL_HOST || "smtp.gmail.com (default)"}`);
-console.log(`EMAIL_PORT: ${process.env.EMAIL_PORT || "587 (default)"}`);
-console.log(`EMAIL_SECURE: ${process.env.EMAIL_SECURE || "auto"}`);
-console.log(`SENDGRID_API_KEY: ${process.env.SENDGRID_API_KEY ? "✅ Set" : "❌ Missing"}`);
-console.log(`FRONTEND_URL: ${process.env.FRONTEND_URL || "Not set (using default)"}`);
+console.log(`EMAIL_FROM: ${process.env.EMAIL_FROM || process.env.EMAIL_USER || "Not set"}`);
+console.log(`CLIENT_URL: ${process.env.CLIENT_URL || process.env.FRONTEND_URL || "Not set (using default)"}`);
 console.log("🔧".repeat(40) + "\n");
 
 // Connect to MongoDB and start server
 connectDB(); // Fire and forget - server will start regardless
+
+// Verify email configuration on startup
+verifyEmailConnection().catch(err => {
+  console.error("⚠️ Email verification failed on startup:", err.message);
+});
 
 server.listen(PORT, () => {
   console.log("\n" + "🚀".repeat(40));
