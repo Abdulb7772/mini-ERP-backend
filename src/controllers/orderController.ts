@@ -31,65 +31,125 @@ export const getOrders = async (
     const total = await Order.countDocuments();
     console.log("Total orders:", total);
     
-    const orders = await Order.find()
-      .populate({
-        path: "customerId",
-        model: "User",
-        select: "name email phone address role"
-      })
-      .populate({
-        path: "createdBy",
-        model: "User",
-        select: "name email"
-      })
-      .populate({
-        path: "items.productId",
-        select: "name sku"
-      })
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(limit);
-    
-    console.log("Fetched orders:", orders.length);
-    if (orders.length > 0) {
-      console.log("Sample order customerId:", orders[0].customerId);
-      console.log("Sample order raw customerId:", (orders[0] as any)._doc?.customerId);
-      console.log("Sample order data:", {
-        orderNumber: orders[0].orderNumber,
-        customerId: orders[0].customerId,
-        customerIdType: typeof orders[0].customerId,
-        isPopulated: orders[0].customerId && typeof orders[0].customerId === 'object',
-        hasName: orders[0].customerId && (orders[0].customerId as any).name
-      });
-      
-      // Check if populate failed
-      const unpopulatedCount = orders.filter(order => 
-        !order.customerId || typeof order.customerId !== 'object' || !(order.customerId as any).name
-      ).length;
-      
-      if (unpopulatedCount > 0) {
-        console.log(`⚠️ WARNING: ${unpopulatedCount} orders have unpopulated customerIds`);
-        
-        // Try to manually fetch and attach customer data for unpopulated orders
-        for (const order of orders) {
-          if (!order.customerId || typeof order.customerId !== 'object' || !(order.customerId as any).name) {
-            const rawCustomerId = (order as any)._doc?.customerId || order.customerId;
-            console.log(`Attempting to manually fetch customer for order ${order.orderNumber}, customerId:`, rawCustomerId);
-            
-            try {
-              const customer = await User.findById(rawCustomerId).select("name email phone address role");
-              if (customer) {
-                (order as any).customerId = customer;
-                console.log(`✅ Successfully fetched customer: ${customer.name}`);
-              } else {
-                console.log(`❌ Customer not found for ID: ${rawCustomerId}`);
+    // Use aggregation for more reliable population
+    const orders = await Order.aggregate([
+      { $sort: { createdAt: -1 } },
+      { $skip: (page - 1) * limit },
+      { $limit: limit },
+      {
+        $lookup: {
+          from: "users",
+          localField: "customerId",
+          foreignField: "_id",
+          as: "customerData"
+        }
+      },
+      {
+        $lookup: {
+          from: "users",
+          localField: "createdBy",
+          foreignField: "_id",
+          as: "createdByData"
+        }
+      },
+      {
+        $lookup: {
+          from: "products",
+          localField: "items.productId",
+          foreignField: "_id",
+          as: "productData"
+        }
+      },
+      {
+        $addFields: {
+          customerId: {
+            $cond: {
+              if: { $gt: [{ $size: "$customerData" }, 0] },
+              then: {
+                $let: {
+                  vars: { customer: { $arrayElemAt: ["$customerData", 0] } },
+                  in: {
+                    _id: "$$customer._id",
+                    name: "$$customer.name",
+                    email: "$$customer.email",
+                    phone: "$$customer.phone",
+                    address: "$$customer.address",
+                    role: "$$customer.role"
+                  }
+                }
+              },
+              else: null
+            }
+          },
+          createdBy: {
+            $cond: {
+              if: { $gt: [{ $size: "$createdByData" }, 0] },
+              then: {
+                $let: {
+                  vars: { user: { $arrayElemAt: ["$createdByData", 0] } },
+                  in: {
+                    _id: "$$user._id",
+                    name: "$$user.name",
+                    email: "$$user.email"
+                  }
+                }
+              },
+              else: null
+            }
+          },
+          items: {
+            $map: {
+              input: "$items",
+              as: "item",
+              in: {
+                $mergeObjects: [
+                  "$$item",
+                  {
+                    productId: {
+                      $let: {
+                        vars: {
+                          product: {
+                            $arrayElemAt: [
+                              {
+                                $filter: {
+                                  input: "$productData",
+                                  cond: { $eq: ["$$this._id", "$$item.productId"] }
+                                }
+                              },
+                              0
+                            ]
+                          }
+                        },
+                        in: {
+                          _id: "$$product._id",
+                          name: "$$product.name",
+                          sku: "$$product.sku"
+                        }
+                      }
+                    }
+                  }
+                ]
               }
-            } catch (err) {
-              console.log(`❌ Error fetching customer:`, err);
             }
           }
         }
+      },
+      {
+        $project: {
+          customerData: 0,
+          createdByData: 0,
+          productData: 0
+        }
       }
+    ]);
+    
+    console.log("Fetched orders:", orders.length);
+    if (orders.length > 0) {
+      console.log("Sample order with aggregation:", {
+        orderNumber: orders[0].orderNumber,
+        customerId: orders[0].customerId,
+        hasCustomerName: orders[0].customerId?.name
+      });
     }
 
     res.status(200).json({
@@ -102,6 +162,7 @@ export const getOrders = async (
       },
     });
   } catch (error) {
+    console.error("Error in getOrders:", error);
     next(error);
   }
 };
