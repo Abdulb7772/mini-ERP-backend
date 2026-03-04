@@ -68,7 +68,7 @@ const orderSchema = new mongoose_1.Schema({
     },
     customerId: {
         type: mongoose_1.Schema.Types.ObjectId,
-        ref: "Customer",
+        ref: "User",
         required: true,
     },
     items: [orderItemSchema],
@@ -96,6 +96,16 @@ const orderSchema = new mongoose_1.Schema({
         type: Number,
         default: 0,
         min: 0,
+    },
+    shippingAddress: {
+        fullName: String,
+        phone: String,
+        address: String,
+        street: String,
+        city: String,
+        state: String,
+        zipCode: String,
+        country: String,
     },
     userId: {
         type: mongoose_1.Schema.Types.ObjectId,

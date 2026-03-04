@@ -42,7 +42,7 @@ const ComplaintSchema = new mongoose_1.Schema({
     },
     customerId: {
         type: mongoose_1.default.Schema.Types.ObjectId,
-        ref: "Customer",
+        ref: "User",
         required: true,
     },
     subject: {

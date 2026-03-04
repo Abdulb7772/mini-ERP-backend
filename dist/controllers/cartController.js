@@ -13,9 +13,11 @@ const addToCart = async (req, res) => {
     try {
         const userId = req.user?.userId;
         const { productId, variationId, quantity } = req.body;
+        console.log("🛒 Add to cart request:", { userId, productId, variationId, quantity });
         // Validate product exists
         const product = await Product_1.default.findById(productId);
         if (!product) {
+            console.error("❌ Product not found:", productId);
             throw new errorHandler_1.AppError("Product not found", 404);
         }
         let price = product.price;

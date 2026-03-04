@@ -54,13 +54,21 @@ const userSchema = new mongoose_1.Schema({
     },
     role: {
         type: String,
-        enum: ["admin", "top_manager", "inventory_manager", "employee_manager", "blog_manager", "order_manager", "customer_manager", "report_manager", "staff"],
+        enum: ["admin", "top_manager", "inventory_manager", "employee_manager", "blog_manager", "order_manager", "customer_manager", "report_manager", "staff", "customer"],
         default: "staff",
     },
     teams: [{
             type: mongoose_1.Schema.Types.ObjectId,
             ref: "Team",
         }],
+    phone: {
+        type: String,
+        trim: true,
+    },
+    address: {
+        type: String,
+        trim: true,
+    },
     isActive: {
         type: Boolean,
         default: true,

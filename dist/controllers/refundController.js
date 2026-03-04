@@ -33,15 +33,25 @@ const getRefundableOrders = async (req, res) => {
             ];
         }
         const skip = (parseInt(page) - 1) * parseInt(limit);
+        console.log("\n=== FETCHING REFUND ORDERS ===");
+        console.log("Query:", query);
         const [orders, total] = await Promise.all([
             Order_1.default.find(query)
                 .sort({ createdAt: -1 })
                 .skip(skip)
                 .limit(parseInt(limit))
-                .populate('customerId', 'name email')
+                .populate('customerId', 'name email phone address role')
                 .populate('items.productId', 'name images'),
             Order_1.default.countDocuments(query),
         ]);
+        console.log("Fetched orders:", orders.length);
+        if (orders.length > 0) {
+            console.log("Sample order:", {
+                orderNumber: orders[0].orderNumber,
+                customerId: orders[0].customerId,
+                customerIdRaw: orders[0].customerId,
+            });
+        }
         // Get wallet info for each order's user to show current balance
         const ordersWithWalletInfo = await Promise.all(orders.map(async (order) => {
             const orderObj = order.toObject();

@@ -40,7 +40,6 @@ exports.createPaymentIntent = exports.cancelOrder = exports.updateOrderStatus = 
 const Order_1 = __importDefault(require("../models/Order"));
 const Product_1 = __importDefault(require("../models/Product"));
 const Variation_1 = __importDefault(require("../models/Variation"));
-const Customer_1 = __importDefault(require("../models/Customer"));
 const User_1 = __importDefault(require("../models/User"));
 const Notification_1 = __importDefault(require("../models/Notification"));
 const mongoose_1 = __importDefault(require("mongoose"));
@@ -57,9 +56,11 @@ const getOrders = async (req, res, next) => {
     try {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
+        console.log("\n=== FETCHING ORDERS ===");
         const total = await Order_1.default.countDocuments();
+        console.log("Total orders:", total);
         const orders = await Order_1.default.find()
-            .populate("customerId", "name email phone address")
+            .populate("customerId", "name email phone address role")
             .populate("createdBy", "name email")
             .populate({
             path: "items.productId",
@@ -68,6 +69,16 @@ const getOrders = async (req, res, next) => {
             .sort({ createdAt: -1 })
             .skip((page - 1) * limit)
             .limit(limit);
+        console.log("Fetched orders:", orders.length);
+        if (orders.length > 0) {
+            console.log("Sample order customerId:", orders[0].customerId);
+            console.log("Sample order data:", {
+                orderNumber: orders[0].orderNumber,
+                customerId: orders[0].customerId,
+                customerIdType: typeof orders[0].customerId,
+                isPopulated: orders[0].customerId && typeof orders[0].customerId === 'object'
+            });
+        }
         res.status(200).json({
             status: "success",
             data: orders,
@@ -156,68 +167,10 @@ const createOrder = async (req, res, next) => {
     try {
         const { customerId, items, notes, phone, shippingAddress, paymentMethod, paymentStatus, transactionId, totalAmount: requestTotalAmount, walletPointsUsed } = req.body;
         let finalCustomerId = customerId;
-        // If no customerId provided, try to find or create customer from user info
+        // If no customerId provided, use the logged-in user's ID
         if (!finalCustomerId && req.user?.userId) {
-            try {
-                // Check if the logged-in user is a customer
-                if (req.user.role === "customer") {
-                    // User is already a customer, use their ID directly
-                    const customer = await Customer_1.default.findById(req.user.userId);
-                    console.log("Found customer from token:", customer ? { id: customer._id, email: customer.email } : "No customer found");
-                    if (customer) {
-                        // Update customer info if provided
-                        if (phone)
-                            customer.phone = phone;
-                        if (shippingAddress)
-                            customer.address = shippingAddress;
-                        await customer.save();
-                        console.log("Updated existing customer:", customer._id);
-                        finalCustomerId = customer._id;
-                    }
-                    else {
-                        console.error("Customer ID from token not found in database");
-                    }
-                }
-                else {
-                    // User is staff/admin/manager, need to find or create a customer record
-                    const User = (await Promise.resolve().then(() => __importStar(require("../models/User")))).default;
-                    const user = await User.findById(req.user.userId);
-                    console.log("Found user:", user ? { id: user._id, email: user.email, name: user.name } : "No user found");
-                    if (user && user.email) {
-                        // Try to find existing customer by email
-                        let customer = await Customer_1.default.findOne({ email: user.email });
-                        console.log("Found customer:", customer ? { id: customer._id, email: customer.email } : "No customer found, will create");
-                        // If not found, create a new customer
-                        if (!customer) {
-                            customer = await Customer_1.default.create({
-                                name: user.name || "Guest Customer",
-                                email: user.email,
-                                password: "temp_password_" + Date.now(), // Temporary password
-                                phone: phone || "N/A",
-                                address: shippingAddress || "",
-                                isVerified: true,
-                            });
-                            console.log("Created new customer:", customer._id);
-                        }
-                        else {
-                            // Update customer info if provided
-                            if (phone)
-                                customer.phone = phone;
-                            if (shippingAddress)
-                                customer.address = shippingAddress;
-                            await customer.save();
-                            console.log("Updated existing customer:", customer._id);
-                        }
-                        finalCustomerId = customer._id;
-                    }
-                    else {
-                        console.error("User found but no email:", user);
-                    }
-                }
-            }
-            catch (userError) {
-                console.error("Error finding/creating customer:", userError);
-            }
+            finalCustomerId = req.user.userId;
+            console.log("Using logged-in user ID as customer:", finalCustomerId);
         }
         if (!finalCustomerId) {
             console.error("Failed to determine customer ID. req.user:", req.user);
@@ -306,6 +259,7 @@ const createOrder = async (req, res, next) => {
             paymentStatus: paymentStatus || "unpaid",
             paidAmount: paymentStatus === "paid" ? finalTotalAmount : 0,
             walletPointsUsed: walletPointsUsed || 0,
+            shippingAddress: shippingAddress || {},
             notes: notes || `Payment Method: ${paymentMethod || "N/A"}${transactionId ? `, Transaction ID: ${transactionId}` : ""}`,
             createdBy: req.user?.userId,
         });

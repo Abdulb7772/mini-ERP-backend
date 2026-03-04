@@ -42,7 +42,7 @@ const reviewSchema = new mongoose_1.Schema({
     },
     customerId: {
         type: mongoose_1.Schema.Types.ObjectId,
-        ref: "Customer",
+        ref: "User",
         required: true,
     },
     productId: {
@@ -84,7 +84,7 @@ const reviewSchema = new mongoose_1.Schema({
     },
     helpfulBy: {
         type: [mongoose_1.Schema.Types.ObjectId],
-        ref: "Customer",
+        ref: "User",
         default: [],
     },
     adminReply: {

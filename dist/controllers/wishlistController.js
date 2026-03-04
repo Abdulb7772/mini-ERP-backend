@@ -13,9 +13,11 @@ const addToWishlist = async (req, res) => {
     try {
         const userId = req.user?.userId;
         const { productId, variationId } = req.body;
+        console.log("❤️ Add to wishlist request:", { userId, productId, variationId });
         // Validate product exists
         const product = await Product_1.default.findById(productId);
         if (!product) {
+            console.error("❌ Product not found:", productId);
             throw new errorHandler_1.AppError("Product not found", 404);
         }
         // Find or create wishlist
@@ -122,6 +124,7 @@ const removeFromWishlist = async (req, res) => {
     try {
         const userId = req.user?.userId;
         const { productId, variationId } = req.body;
+        console.log("💔 Remove from wishlist request:", { userId, productId, variationId });
         const wishlist = await Wishlist_1.default.findOne({ userId });
         if (!wishlist) {
             throw new errorHandler_1.AppError("Wishlist not found", 404);
