@@ -260,25 +260,75 @@ export const resendVerificationEmail = async (
   next: NextFunction
 ) => {
   try {
-    // Accept email from body (public route)
-    const { email } = req.body;
+    // Log req.body for debugging
+    console.log("📧 Resend verification request - Body:", req.body);
+    console.log("📧 Resend verification request - Params:", req.params);
 
-    if (!email) {
-      throw new AppError("Email is required", 400);
-    }
+    let account: any = null;
+    let email: string = "";
 
-    // Check both User and Customer tables
-    const user = await User.findOne({ email });
-    const customer = await Customer.findOne({ email });
-    
-    const account = user || customer;
+    // Check if this is an admin route with user ID in params
+    if (req.params.id) {
+      console.log(`📧 Fetching user by ID: ${req.params.id}`);
+      
+      // Try to find user by ID in both User and Customer collections
+      const user = await User.findById(req.params.id);
+      const customer = await Customer.findById(req.params.id);
+      
+      account = user || customer;
 
-    if (!account) {
-      throw new AppError("Account not found", 404);
+      if (!account) {
+        console.error(`❌ User not found with ID: ${req.params.id}`);
+        return res.status(404).json({
+          status: "error",
+          message: "User not found",
+        });
+      }
+
+      email = account.email;
+
+      if (!email) {
+        console.error(`❌ Email missing for user ID: ${req.params.id}`);
+        return res.status(400).json({
+          status: "error",
+          message: "User email is missing",
+        });
+      }
+    } else {
+      // Public route - accept email from body
+      email = req.body?.email;
+
+      if (!email) {
+        console.error("❌ Email is required in request body");
+        return res.status(400).json({
+          status: "error",
+          message: "Email is required",
+        });
+      }
+
+      console.log(`📧 Fetching user by email: ${email}`);
+
+      // Check both User and Customer tables
+      const user = await User.findOne({ email });
+      const customer = await Customer.findOne({ email });
+      
+      account = user || customer;
+
+      if (!account) {
+        console.error(`❌ Account not found with email: ${email}`);
+        return res.status(404).json({
+          status: "error",
+          message: "Account not found",
+        });
+      }
     }
 
     if (account.isVerified) {
-      throw new AppError("Account is already verified", 400);
+      console.log(`ℹ️ Account already verified: ${email}`);
+      return res.status(400).json({
+        status: "error",
+        message: "Account is already verified",
+      });
     }
 
     // Generate new verification token
@@ -289,26 +339,36 @@ export const resendVerificationEmail = async (
     account.verificationTokenExpires = verificationTokenExpires;
     await account.save();
 
+    console.log(`✅ Verification token generated for: ${email}`);
+
     // Send verification email (without password since user already has credentials)
     try {
       await sendVerificationEmail(account.email, account.name, verificationToken);
+      console.log(`✅ Verification email sent to: ${email}`);
     } catch (emailError: any) {
-      console.error("Failed to send email:", emailError);
+      console.error("❌ Failed to send verification email:", emailError);
       if (emailError?.code === "ETIMEDOUT") {
-        throw new AppError(
-          "Email service connection timed out. Verify EMAIL_HOST/EMAIL_PORT/EMAIL_SECURE on Render and try again.",
-          503
-        );
+        return res.status(503).json({
+          status: "error",
+          message: "Email service connection timed out. Please try again later.",
+        });
       }
-      throw new AppError("Failed to send verification email", 500);
+      return res.status(500).json({
+        status: "error",
+        message: "Failed to send verification email. Please try again.",
+      });
     }
 
     res.status(200).json({
       status: "success",
       message: "Verification email sent successfully",
     });
-  } catch (error) {
-    next(error);
+  } catch (error: any) {
+    console.error("❌ Resend verification error:", error);
+    return res.status(500).json({
+      status: "error",
+      message: error.message || "An unexpected error occurred while resending verification email",
+    });
   }
 };
 

@@ -31,124 +31,25 @@ export const getOrders = async (
     const total = await Order.countDocuments();
     console.log("Total orders:", total);
     
-    // Use aggregation for more reliable population
-    const orders = await Order.aggregate([
-      { $sort: { createdAt: -1 } },
-      { $skip: (page - 1) * limit },
-      { $limit: limit },
-      {
-        $lookup: {
-          from: "users",
-          localField: "customerId",
-          foreignField: "_id",
-          as: "customerData"
-        }
-      },
-      {
-        $lookup: {
-          from: "users",
-          localField: "createdBy",
-          foreignField: "_id",
-          as: "createdByData"
-        }
-      },
-      {
-        $lookup: {
-          from: "products",
-          localField: "items.productId",
-          foreignField: "_id",
-          as: "productData"
-        }
-      },
-      {
-        $addFields: {
-          customerId: {
-            $cond: {
-              if: { $gt: [{ $size: "$customerData" }, 0] },
-              then: {
-                $let: {
-                  vars: { customer: { $arrayElemAt: ["$customerData", 0] } },
-                  in: {
-                    _id: "$$customer._id",
-                    name: "$$customer.name",
-                    email: "$$customer.email",
-                    phone: "$$customer.phone",
-                    address: "$$customer.address",
-                    role: "$$customer.role"
-                  }
-                }
-              },
-              else: null
-            }
-          },
-          createdBy: {
-            $cond: {
-              if: { $gt: [{ $size: "$createdByData" }, 0] },
-              then: {
-                $let: {
-                  vars: { user: { $arrayElemAt: ["$createdByData", 0] } },
-                  in: {
-                    _id: "$$user._id",
-                    name: "$$user.name",
-                    email: "$$user.email"
-                  }
-                }
-              },
-              else: null
-            }
-          },
-          items: {
-            $map: {
-              input: "$items",
-              as: "item",
-              in: {
-                $mergeObjects: [
-                  "$$item",
-                  {
-                    productId: {
-                      $let: {
-                        vars: {
-                          product: {
-                            $arrayElemAt: [
-                              {
-                                $filter: {
-                                  input: "$productData",
-                                  cond: { $eq: ["$$this._id", "$$item.productId"] }
-                                }
-                              },
-                              0
-                            ]
-                          }
-                        },
-                        in: {
-                          _id: "$$product._id",
-                          name: "$$product.name",
-                          sku: "$$product.sku"
-                        }
-                      }
-                    }
-                  }
-                ]
-              }
-            }
-          }
-        }
-      },
-      {
-        $project: {
-          customerData: 0,
-          createdByData: 0,
-          productData: 0
-        }
-      }
-    ]);
+    const orders = await Order.find()
+      .populate("customerId", "name email phone address role")
+      .populate("createdBy", "name email")
+      .populate({
+        path: "items.productId",
+        select: "name sku"
+      })
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit);
     
     console.log("Fetched orders:", orders.length);
     if (orders.length > 0) {
-      console.log("Sample order with aggregation:", {
+      console.log("Sample order customerId:", orders[0].customerId);
+      console.log("Sample order data:", {
         orderNumber: orders[0].orderNumber,
         customerId: orders[0].customerId,
-        hasCustomerName: orders[0].customerId?.name
+        customerIdType: typeof orders[0].customerId,
+        isPopulated: orders[0].customerId && typeof orders[0].customerId === 'object'
       });
     }
 
@@ -162,7 +63,6 @@ export const getOrders = async (
       },
     });
   } catch (error) {
-    console.error("Error in getOrders:", error);
     next(error);
   }
 };

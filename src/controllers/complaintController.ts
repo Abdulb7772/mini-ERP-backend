@@ -140,15 +140,12 @@ export const getAllComplaints = async (req: AuthRequest, res: Response) => {
     
     const complaints = await Complaint.find(filter)
       .populate("orderId", "orderNumber totalAmount status createdAt")
-      .populate({
-        path: "customerId",
-        model: "User",
-        select: "name email phone address role"
-      })
+      .populate("customerId", "name email phone address role")
       .populate("respondedBy", "name email")
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(Number(limit));
+      .limit(Number(limit))
+      .lean();
 
     const total = await Complaint.countDocuments(filter);
 
@@ -158,31 +155,7 @@ export const getAllComplaints = async (req: AuthRequest, res: Response) => {
         _id: complaints[0]._id,
         customerId: complaints[0].customerId,
         orderId: complaints[0].orderId,
-        isPopulated: complaints[0].customerId && typeof complaints[0].customerId === 'object',
       });
-      
-      // Check if populate failed and manually fetch customer data
-      const unpopulatedCount = complaints.filter(complaint => 
-        !complaint.customerId || typeof complaint.customerId !== 'object' || !(complaint.customerId as any).name
-      ).length;
-      
-      if (unpopulatedCount > 0) {
-        console.log(`⚠️ WARNING: ${unpopulatedCount} complaints have unpopulated customerIds`);
-        
-        for (const complaint of complaints) {
-          if (!complaint.customerId || typeof complaint.customerId !== 'object' || !(complaint.customerId as any).name) {
-            const rawCustomerId = (complaint as any)._doc?.customerId || (complaint as any).customerId;
-            try {
-              const customer = await User.findById(rawCustomerId).select("name email phone address role");
-              if (customer) {
-                (complaint as any).customerId = customer;
-              }
-            } catch (err) {
-              console.log(`Error fetching customer for complaint:`, err);
-            }
-          }
-        }
-      }
     }
 
     res.status(200).json({

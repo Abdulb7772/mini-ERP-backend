@@ -34,7 +34,6 @@ import walletRoutes from "./routes/walletRoutes";
 import refundRoutes from "./routes/refundRoutes";
 import teamRoutes from "./routes/teamRoutes";
 import chatRoutes from "./routes/chatRoutes";
-import diagnosticRoutes from "./routes/diagnosticRoutes";
 
 const app = express();
 const server = http.createServer(app);
@@ -147,7 +146,6 @@ app.use("/api/wallet", walletRoutes);
 app.use("/api/refund", refundRoutes);
 app.use("/api/teams", teamRoutes);
 app.use("/api/chats", chatRoutes);
-app.use("/api/diagnostic", diagnosticRoutes);
 
 // Add error logging middleware (BEFORE error handler)
 app.use(errorLogger);
