@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middlewares/auth';
 import Order from '../models/Order';
+import User from '../models/User';
 import Wallet from '../models/Wallet';
 import WalletTransaction from '../models/WalletTransaction';
 import Notification from '../models/Notification';
@@ -43,7 +44,11 @@ export const getRefundableOrders = async (req: AuthRequest, res: Response): Prom
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(parseInt(limit as string))
-        .populate('customerId', 'name email phone address role')
+        .populate({
+          path: 'customerId',
+          model: 'User',
+          select: 'name email phone address role'
+        })
         .populate('items.productId', 'name images'),
       Order.countDocuments(query),
     ]);
@@ -54,7 +59,31 @@ export const getRefundableOrders = async (req: AuthRequest, res: Response): Prom
         orderNumber: orders[0].orderNumber,
         customerId: orders[0].customerId,
         customerIdRaw: (orders[0] as any).customerId,
+        isPopulated: orders[0].customerId && typeof orders[0].customerId === 'object',
       });
+      
+      // Check if populate failed and manually fetch customer data
+      const unpopulatedCount = orders.filter(order => 
+        !order.customerId || typeof order.customerId !== 'object' || !(order.customerId as any).name
+      ).length;
+      
+      if (unpopulatedCount > 0) {
+        console.log(`⚠️ WARNING: ${unpopulatedCount} refund orders have unpopulated customerIds`);
+        
+        for (const order of orders) {
+          if (!order.customerId || typeof order.customerId !== 'object' || !(order.customerId as any).name) {
+            const rawCustomerId = (order as any)._doc?.customerId || order.customerId;
+            try {
+              const customer = await User.findById(rawCustomerId).select("name email phone address role");
+              if (customer) {
+                (order as any).customerId = customer;
+              }
+            } catch (err) {
+              console.log(`Error fetching customer for refund order:`, err);
+            }
+          }
+        }
+      }
     }
 
     // Get wallet info for each order's user to show current balance

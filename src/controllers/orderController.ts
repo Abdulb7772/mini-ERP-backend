@@ -32,8 +32,16 @@ export const getOrders = async (
     console.log("Total orders:", total);
     
     const orders = await Order.find()
-      .populate("customerId", "name email phone address role")
-      .populate("createdBy", "name email")
+      .populate({
+        path: "customerId",
+        model: "User",
+        select: "name email phone address role"
+      })
+      .populate({
+        path: "createdBy",
+        model: "User",
+        select: "name email"
+      })
       .populate({
         path: "items.productId",
         select: "name sku"
@@ -45,12 +53,43 @@ export const getOrders = async (
     console.log("Fetched orders:", orders.length);
     if (orders.length > 0) {
       console.log("Sample order customerId:", orders[0].customerId);
+      console.log("Sample order raw customerId:", (orders[0] as any)._doc?.customerId);
       console.log("Sample order data:", {
         orderNumber: orders[0].orderNumber,
         customerId: orders[0].customerId,
         customerIdType: typeof orders[0].customerId,
-        isPopulated: orders[0].customerId && typeof orders[0].customerId === 'object'
+        isPopulated: orders[0].customerId && typeof orders[0].customerId === 'object',
+        hasName: orders[0].customerId && (orders[0].customerId as any).name
       });
+      
+      // Check if populate failed
+      const unpopulatedCount = orders.filter(order => 
+        !order.customerId || typeof order.customerId !== 'object' || !(order.customerId as any).name
+      ).length;
+      
+      if (unpopulatedCount > 0) {
+        console.log(`⚠️ WARNING: ${unpopulatedCount} orders have unpopulated customerIds`);
+        
+        // Try to manually fetch and attach customer data for unpopulated orders
+        for (const order of orders) {
+          if (!order.customerId || typeof order.customerId !== 'object' || !(order.customerId as any).name) {
+            const rawCustomerId = (order as any)._doc?.customerId || order.customerId;
+            console.log(`Attempting to manually fetch customer for order ${order.orderNumber}, customerId:`, rawCustomerId);
+            
+            try {
+              const customer = await User.findById(rawCustomerId).select("name email phone address role");
+              if (customer) {
+                (order as any).customerId = customer;
+                console.log(`✅ Successfully fetched customer: ${customer.name}`);
+              } else {
+                console.log(`❌ Customer not found for ID: ${rawCustomerId}`);
+              }
+            } catch (err) {
+              console.log(`❌ Error fetching customer:`, err);
+            }
+          }
+        }
+      }
     }
 
     res.status(200).json({

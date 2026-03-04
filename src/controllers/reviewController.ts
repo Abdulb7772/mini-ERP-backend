@@ -2,6 +2,7 @@ import { Response, NextFunction } from "express";
 import Review from "../models/Review";
 import Order from "../models/Order";
 import Product from "../models/Product";
+import User from "../models/User";
 import { AppError } from "../middlewares/errorHandler";
 import { AuthRequest } from "../middlewares/auth";
 
@@ -28,7 +29,11 @@ export const getReviews = async (
     
     const total = await Review.countDocuments(query);
     const reviews = await Review.find(query)
-      .populate("customerId", "name email phone address role")
+      .populate({
+        path: "customerId",
+        model: "User",
+        select: "name email phone address role"
+      })
       .populate("productId", "name imageUrl")
       .populate("orderId", "orderNumber")
       .sort({ createdAt: -1 })
@@ -41,7 +46,31 @@ export const getReviews = async (
         _id: reviews[0]._id,
         customerId: reviews[0].customerId,
         customerIdRaw: (reviews[0] as any).customerId,
+        isPopulated: reviews[0].customerId && typeof reviews[0].customerId === 'object',
       });
+      
+      // Check if populate failed and manually fetch customer data
+      const unpopulatedCount = reviews.filter(review => 
+        !review.customerId || typeof review.customerId !== 'object' || !(review.customerId as any).name
+      ).length;
+      
+      if (unpopulatedCount > 0) {
+        console.log(`⚠️ WARNING: ${unpopulatedCount} reviews have unpopulated customerIds`);
+        
+        for (const review of reviews) {
+          if (!review.customerId || typeof review.customerId !== 'object' || !(review.customerId as any).name) {
+            const rawCustomerId = (review as any)._doc?.customerId || review.customerId;
+            try {
+              const customer = await User.findById(rawCustomerId).select("name email phone address role");
+              if (customer) {
+                (review as any).customerId = customer;
+              }
+            } catch (err) {
+              console.log(`Error fetching customer for review:`, err);
+            }
+          }
+        }
+      }
     }
 
     res.status(200).json({
