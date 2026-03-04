@@ -8,6 +8,17 @@ export interface IOrderItem {
   subtotal: number;
 }
 
+export interface IShippingAddress {
+  fullName?: string;
+  phone?: string;
+  address?: string;
+  street?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
+  country?: string;
+}
+
 export interface IOrder extends Document {
   orderNumber: string;
   customerId: mongoose.Types.ObjectId;
@@ -17,6 +28,7 @@ export interface IOrder extends Document {
   paymentStatus: "unpaid" | "partial" | "paid";
   paidAmount: number;
   walletPointsUsed?: number;
+  shippingAddress?: IShippingAddress;
   notes?: string;
   createdBy: mongoose.Types.ObjectId;
   userId?: mongoose.Types.ObjectId;
@@ -63,7 +75,7 @@ const orderSchema = new Schema<IOrder>(
     },
     customerId: {
       type: Schema.Types.ObjectId,
-      ref: "Customer",
+      ref: "User",
       required: true,
     },
     items: [orderItemSchema],
@@ -91,6 +103,16 @@ const orderSchema = new Schema<IOrder>(
       type: Number,
       default: 0,
       min: 0,
+    },
+    shippingAddress: {
+      fullName: String,
+      phone: String,
+      address: String,
+      street: String,
+      city: String,
+      state: String,
+      zipCode: String,
+      country: String,
     },
     userId: {
       type: Schema.Types.ObjectId,

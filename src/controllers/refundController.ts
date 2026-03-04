@@ -35,15 +35,27 @@ export const getRefundableOrders = async (req: AuthRequest, res: Response): Prom
 
     const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
 
+    console.log("\n=== FETCHING REFUND ORDERS ===");
+    console.log("Query:", query);
+    
     const [orders, total] = await Promise.all([
       Order.find(query)
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(parseInt(limit as string))
-        .populate('customerId', 'name email')
+        .populate('customerId', 'name email phone address role')
         .populate('items.productId', 'name images'),
       Order.countDocuments(query),
     ]);
+    
+    console.log("Fetched orders:", orders.length);
+    if (orders.length > 0) {
+      console.log("Sample order:", {
+        orderNumber: orders[0].orderNumber,
+        customerId: orders[0].customerId,
+        customerIdRaw: (orders[0] as any).customerId,
+      });
+    }
 
     // Get wallet info for each order's user to show current balance
     const ordersWithWalletInfo = await Promise.all(

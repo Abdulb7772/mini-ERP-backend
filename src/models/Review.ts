@@ -28,7 +28,7 @@ const reviewSchema = new Schema<IReview>(
     },
     customerId: {
       type: Schema.Types.ObjectId,
-      ref: "Customer",
+      ref: "User",
       required: true,
     },
     productId: {
@@ -70,7 +70,7 @@ const reviewSchema = new Schema<IReview>(
     },
     helpfulBy: {
       type: [Schema.Types.ObjectId],
-      ref: "Customer",
+      ref: "User",
       default: [],
     },
     adminReply: {

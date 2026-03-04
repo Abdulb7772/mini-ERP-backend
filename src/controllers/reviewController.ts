@@ -23,14 +23,26 @@ export const getReviews = async (
     if (customerId) query.customerId = customerId;
     if (status) query.status = status;
 
+    console.log("\n=== FETCHING REVIEWS ===");
+    console.log("Query:", query);
+    
     const total = await Review.countDocuments(query);
     const reviews = await Review.find(query)
-      .populate("customerId", "name email")
+      .populate("customerId", "name email phone address role")
       .populate("productId", "name imageUrl")
       .populate("orderId", "orderNumber")
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit);
+    
+    console.log("Fetched reviews:", reviews.length);
+    if (reviews.length > 0) {
+      console.log("Sample review:", {
+        _id: reviews[0]._id,
+        customerId: reviews[0].customerId,
+        customerIdRaw: (reviews[0] as any).customerId,
+      });
+    }
 
     res.status(200).json({
       status: "success",

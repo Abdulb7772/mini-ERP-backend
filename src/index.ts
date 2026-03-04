@@ -155,6 +155,7 @@ app.use(errorHandler);
 
 // Log environment configuration
 console.log("\n" + "🔧".repeat(40));
+console.log("BACKEND RESTARTED WITH DEBUG LOGGING - " + new Date().toISOString());
 console.log("ENVIRONMENT CONFIGURATION");
 console.log("🔧".repeat(40));
 console.log(`NODE_ENV: ${process.env.NODE_ENV || "development"}`);

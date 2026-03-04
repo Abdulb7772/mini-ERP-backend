@@ -135,9 +135,12 @@ export const getAllComplaints = async (req: AuthRequest, res: Response) => {
 
     const skip = (Number(page) - 1) * Number(limit);
 
+    console.log("\n=== FETCHING COMPLAINTS ===");
+    console.log("Filter:", filter);
+    
     const complaints = await Complaint.find(filter)
       .populate("orderId", "orderNumber totalAmount status createdAt")
-      .populate("customerId", "name email phone")
+      .populate("customerId", "name email phone address role")
       .populate("respondedBy", "name email")
       .sort({ createdAt: -1 })
       .skip(skip)
@@ -146,10 +149,13 @@ export const getAllComplaints = async (req: AuthRequest, res: Response) => {
 
     const total = await Complaint.countDocuments(filter);
 
-    // Log for debugging
     console.log('Fetched complaints:', complaints.length);
     if (complaints.length > 0) {
-      console.log('Sample complaint customer:', complaints[0].customerId);
+      console.log('Sample complaint:', {
+        _id: complaints[0]._id,
+        customerId: complaints[0].customerId,
+        orderId: complaints[0].orderId,
+      });
     }
 
     res.status(200).json({
