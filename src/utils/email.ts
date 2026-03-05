@@ -1,4 +1,4 @@
-import nodemailer from "nodemailer";
+import nodemailer = require("nodemailer");
 import crypto from "crypto";
 
 // ============================================================================
@@ -27,7 +27,7 @@ const createTransporter = () => {
     );
   }
 
-  return nodemailer.createTransporter({
+  return nodemailer.createTransport({
     host: "smtp.gmail.com",
     port: 587,
     secure: false, // Use TLS

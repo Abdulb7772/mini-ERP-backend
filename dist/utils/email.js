@@ -4,7 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.sendOrderConfirmationEmail = exports.sendPasswordResetEmail = exports.sendVerificationEmail = exports.generateVerificationToken = exports.sendEmail = exports.verifyEmailConnection = void 0;
-const nodemailer_1 = __importDefault(require("nodemailer"));
+const nodemailer = require("nodemailer");
 const crypto_1 = __importDefault(require("crypto"));
 const getEmailPassword = () => process.env.EMAIL_PASSWORD || process.env.EMAIL_PASS;
 const getEmailFrom = () => process.env.EMAIL_FROM || process.env.EMAIL_USER;
@@ -17,7 +17,7 @@ const createTransporter = () => {
         console.error("   EMAIL_PASS:", emailPassword ? "✅ Set" : "❌ Missing");
         throw new Error("Email credentials are missing. Set EMAIL_USER and EMAIL_PASSWORD (or EMAIL_PASS) in Render environment variables.");
     }
-    return nodemailer_1.default.createTransporter({
+    return nodemailer.createTransport({
         host: "smtp.gmail.com",
         port: 587,
         secure: false, // Use TLS
