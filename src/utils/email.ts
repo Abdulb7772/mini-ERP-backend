@@ -19,8 +19,11 @@ const createTransporter = () => {
   const emailPassword = getEmailPassword();
 
   if (!process.env.EMAIL_USER || !emailPassword) {
+    console.error("❌ EMAIL CONFIGURATION ERROR:");
+    console.error("   EMAIL_USER:", process.env.EMAIL_USER ? "✅ Set" : "❌ Missing");
+    console.error("   EMAIL_PASS:", emailPassword ? "✅ Set" : "❌ Missing");
     throw new Error(
-      "❌ Email credentials are missing. Set EMAIL_USER and EMAIL_PASSWORD (or EMAIL_PASS) environment variables."
+      "Email credentials are missing. Set EMAIL_USER and EMAIL_PASSWORD (or EMAIL_PASS) in Render environment variables."
     );
   }
 

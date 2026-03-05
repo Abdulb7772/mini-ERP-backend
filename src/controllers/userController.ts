@@ -264,6 +264,16 @@ export const resendVerificationEmail = async (
     console.log("📧 Resend verification request - Body:", req.body);
     console.log("📧 Resend verification request - Params:", req.params);
 
+    // Check if email service is configured
+    const emailPassword = process.env.EMAIL_PASSWORD || process.env.EMAIL_PASS;
+    if (!process.env.EMAIL_USER || !emailPassword) {
+      console.error("❌ Email service not configured on server");
+      return res.status(503).json({
+        status: "error",
+        message: "Email service is not configured. Please contact support.",
+      });
+    }
+
     let account: any = null;
     let email: string = "";
 
@@ -351,6 +361,12 @@ export const resendVerificationEmail = async (
         return res.status(503).json({
           status: "error",
           message: "Email service connection timed out. Please try again later.",
+        });
+      }
+      if (emailError?.code === "EAUTH") {
+        return res.status(503).json({
+          status: "error",
+          message: "Email authentication failed. Please contact support.",
         });
       }
       return res.status(500).json({
