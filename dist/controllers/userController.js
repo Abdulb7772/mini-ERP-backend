@@ -216,6 +216,15 @@ const resendVerificationEmail = async (req, res, next) => {
         // Log req.body for debugging
         console.log("📧 Resend verification request - Body:", req.body);
         console.log("📧 Resend verification request - Params:", req.params);
+        // Check if email service is configured
+        const emailPassword = process.env.EMAIL_PASSWORD || process.env.EMAIL_PASS;
+        if (!process.env.EMAIL_USER || !emailPassword) {
+            console.error("❌ Email service not configured on server");
+            return res.status(503).json({
+                status: "error",
+                message: "Email service is not configured. Please contact support.",
+            });
+        }
         let account = null;
         let email = "";
         // Check if this is an admin route with user ID in params
@@ -289,6 +298,12 @@ const resendVerificationEmail = async (req, res, next) => {
                 return res.status(503).json({
                     status: "error",
                     message: "Email service connection timed out. Please try again later.",
+                });
+            }
+            if (emailError?.code === "EAUTH") {
+                return res.status(503).json({
+                    status: "error",
+                    message: "Email authentication failed. Please contact support.",
                 });
             }
             return res.status(500).json({

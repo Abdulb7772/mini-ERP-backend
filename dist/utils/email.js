@@ -12,9 +12,12 @@ const getEmailFrom = () => process.env.EMAIL_FROM || process.env.EMAIL_USER;
 const createTransporter = () => {
     const emailPassword = getEmailPassword();
     if (!process.env.EMAIL_USER || !emailPassword) {
-        throw new Error("❌ Email credentials are missing. Set EMAIL_USER and EMAIL_PASSWORD (or EMAIL_PASS) environment variables.");
+        console.error("❌ EMAIL CONFIGURATION ERROR:");
+        console.error("   EMAIL_USER:", process.env.EMAIL_USER ? "✅ Set" : "❌ Missing");
+        console.error("   EMAIL_PASS:", emailPassword ? "✅ Set" : "❌ Missing");
+        throw new Error("Email credentials are missing. Set EMAIL_USER and EMAIL_PASSWORD (or EMAIL_PASS) in Render environment variables.");
     }
-    return nodemailer_1.default.createTransport({
+    return nodemailer_1.default.createTransporter({
         host: "smtp.gmail.com",
         port: 587,
         secure: false, // Use TLS
@@ -25,6 +28,9 @@ const createTransporter = () => {
         tls: {
             rejectUnauthorized: true,
         },
+        connectionTimeout: 60000, // 60 seconds
+        greetingTimeout: 30000, // 30 seconds
+        socketTimeout: 60000, // 60 seconds
     });
 };
 // Verify email transporter connection

@@ -27,11 +27,13 @@ export const register = async (
     console.log("👤 Registration type:", isCustomer ? "Customer" : "Staff/Admin");
 
     console.log("\n🔍 Checking for existing accounts...");
-    // Check if email already exists in User table
+    // Check if email already exists in User or Customer table
     const existingUser = await User.findOne({ email });
+    const existingCustomer = await Customer.findOne({ email });
     console.log("   - Existing User:", existingUser ? `Found (${existingUser._id})` : "Not found");
+    console.log("   - Existing Customer:", existingCustomer ? `Found (${existingCustomer._id})` : "Not found");
     
-    if (existingUser) {
+    if (existingUser || existingCustomer) {
       console.log("❌ REGISTRATION FAILED: Email already registered");
       console.log("==================== END REGISTRATION ATTEMPT ====================\n");
       throw new AppError("Email already registered", 400);
@@ -50,19 +52,18 @@ export const register = async (
     let createdUser;
 
     if (isCustomer) {
-      // Create user record with customer role
+      // Create customer record in Customer table
       if (!phone) {
         console.log("❌ REGISTRATION FAILED: Phone number required for customer");
         console.log("==================== END REGISTRATION ATTEMPT ====================\n");
         throw new AppError("Phone number is required for customer registration", 400);
       }
       
-      console.log("\n💾 Creating customer user record...");
-      createdUser = await User.create({
+      console.log("\n💾 Creating customer record in Customer table...");
+      createdUser = await Customer.create({
         name,
         email,
         password: hashedPassword,
-        role: "customer",
         phone,
         address,
         verificationToken,
@@ -70,10 +71,10 @@ export const register = async (
         isVerified: false,
         isActive: true,
       });
-      console.log("✅ Customer user created with ID:", createdUser._id);
+      console.log("✅ Customer created with ID:", createdUser._id);
     } else {
-      // Create staff/admin/manager user
-      console.log("\n💾 Creating user record...");
+      // Create staff/admin/manager user in User table
+      console.log("\n💾 Creating user record in User table...");
       createdUser = await User.create({
         name,
         email,
@@ -164,20 +165,24 @@ export const login = async (
     console.log("✅ Input validation PASSED");
 
     console.log("\n✓ Step 2: Searching for user in database...");
-    console.log("📊 Querying User collection with email:", email);
+    console.log("📊 Querying User and Customer collections with email:", email);
     const startQuery = Date.now();
     
-    // Find user in User collection (includes customers with role="customer")
+    // Find user in both User and Customer collections
     const user = await User.findOne({ email }).lean();
+    const customer = await Customer.findOne({ email }).lean();
     
     const queryTime = Date.now() - startQuery;
     console.log("⏱️  Query completed in:", queryTime, "ms");
     console.log("👤 User collection result:", user ? `FOUND (ID: ${user._id}, Name: ${user.name})` : "NOT FOUND");
+    console.log("👥 Customer collection result:", customer ? `FOUND (ID: ${customer._id}, Name: ${customer.name})` : "NOT FOUND");
     
     console.log("\n📝 Database search summary:");
     console.log("   - User found:", user ? "✅ YES" : "❌ NO");
+    console.log("   - Customer found:", customer ? "✅ YES" : "❌ NO");
     
-    const account = user;
+    const account = user || customer;
+    const accountType = user ? "User" : customer ? "Customer" : null;
     
     console.log("\n✓ Step 3: Account existence check...");
     if (!account) {
@@ -186,14 +191,14 @@ export const login = async (
       console.log("==================== END LOGIN ATTEMPT ====================\n");
       throw new AppError("Invalid credentials", 401);
     }
-    console.log("✅ Account EXISTS!");
+    console.log(`✅ Account EXISTS! (Type: ${accountType})`);
 
     console.log("\n✓ Step 4: Checking account details...");
     console.log("📋 Account Information:");
     console.log("   ├─ ID:", account._id);
     console.log("   ├─ Name:", account.name);
     console.log("   ├─ Email:", account.email);
-    console.log("   ├─ Role:", account.role);
+    console.log("   ├─ Role:", (account as any).role || "customer");
     console.log("   ├─ Is Verified:", account.isVerified ? "✅ YES" : "❌ NO");
     console.log("   ├─ Is Active:", account.isActive ? "✅ YES" : "❌ NO");
     console.log("   └─ Created At:", account.createdAt);
@@ -233,7 +238,8 @@ export const login = async (
     }
     console.log("✅ Password is CORRECT");
 
-    const role = account.role;
+    // Determine role - customers don't have role field, so default to 'customer'
+    const role = (account as any).role || "customer";
     console.log("\n✓ Step 8: JWT token generation...");
     console.log("🎫 Token payload:");
     console.log("   ├─ User ID:", account._id.toString());
@@ -246,7 +252,7 @@ export const login = async (
       email: account.email,
       role: role,
     });
-    const tokenGenTime = Date.now() - startTokenGen;
+    const tokenGenTime =Date.now() - startTokenGen;
     console.log("⏱️  Token generation completed in:", tokenGenTime, "ms");
     console.log("✅ JWT token generated successfully");
     console.log("🔑 Token length:", token.length, "characters");
