@@ -22,9 +22,8 @@ const createTransporter = () => {
     console.error("❌ EMAIL CONFIGURATION ERROR:");
     console.error("   EMAIL_USER:", process.env.EMAIL_USER ? "✅ Set" : "❌ Missing");
     console.error("   EMAIL_PASS:", emailPassword ? "✅ Set" : "❌ Missing");
-    throw new Error(
-      "Email credentials are missing. Set EMAIL_USER and EMAIL_PASSWORD (or EMAIL_PASS) in Render environment variables."
-    );
+    // Return null instead of throwing - let caller handle it
+    return null;
   }
 
   return nodemailer.createTransport({
@@ -45,6 +44,10 @@ const createTransporter = () => {
 export const verifyEmailConnection = async (): Promise<boolean> => {
   try {
     const transporter = createTransporter();
+    if (!transporter) {
+      console.warn("⚠️ Email not configured - Skipping verification");
+      return false;
+    }
     await transporter.verify();
     console.log("✅ Email transporter verified successfully - Ready to send emails");
     return true;
@@ -61,6 +64,13 @@ export const verifyEmailConnection = async (): Promise<boolean> => {
 export const sendEmail = async (opts: OutboundEmailOptions): Promise<void> => {
   try {
     const transporter = createTransporter();
+    
+    if (!transporter) {
+      console.warn("⚠️ Email not configured - Skipping email send");
+      console.warn(`   Would have sent to: ${opts.to}`);
+      console.warn(`   Subject: ${opts.subject}`);
+      return; // Don't throw error, just skip sending
+    }
 
     const mailOptions = {
       from: `"Mini ERP" <${getEmailFrom()}>`,
